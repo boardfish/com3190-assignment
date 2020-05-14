@@ -1,7 +1,7 @@
 -module(erlnigma).
 
 %% API exports
--export([main/1]).
+-export([main/1, index_of/2, reflectorA/0]).
 
 %%====================================================================
 %% API functions
@@ -10,7 +10,6 @@
 %% escript Entry point
 main(Args) ->
     io:format("Args: ~p~n", [Args]),
-    start(),
     erlang:halt(0).
 
 %%====================================================================
@@ -123,8 +122,39 @@ reflectorThinC() ->
      {$Q, $Z}, {$S, $X}, {$U, $Y}].
 
 %%====================================================================
+%% Helpers functions
+%%====================================================================
+
+broadcast(Parent,Receiver,Value) ->
+  Parent!{o,Receiver,{self(),Value}}.
+
+receiver(Parent,Channel) ->
+  Parent!{i,Channel,{self(),0}},
+  receive
+    {i,Channel,{_, Result}} ->
+      Result
+    end.
+
+%%====================================================================
 %% Internal functions
 %%====================================================================
+
+% Schema for each part is as follows:
+% - Each process knows which one created it
+% - The rest of its arguments are processes that can talk to it, or it talks to
+
+% message schema - {[i/o],Channel_PID,contents}
+% reflector(Parent, In, Out) ->
+%   X = receiver(Parent,In),
+%   broadcast(Parent, Out, f_refl(X)),
+%   reflector(Parent, In, Out).
+
+% f_refl(x) ->
+%   lists:filter(fun({X,Y}reflectorA()
+%   ok.
+
+index_of(Char, List) ->
+  string:str(lists:map(fun({Key, _}) -> Key end, List), [Char]).
 
 setup ( ReflectorName , RotorNames , RingSettings , PlugboardPairs , InitialSetting ) ->
   ok. 

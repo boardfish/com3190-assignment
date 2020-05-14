@@ -1,5 +1,5 @@
 -module(erlnigma_test).
--import(erlnigma, []).
+-import(erlnigma, [index_of/2, reflectorA/0]).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -9,11 +9,10 @@ expect(Val) ->
       Other -> {error, Other}
     end.
 
-% ping1_test() ->
-%     PID = spawn(erlnigma, ping, [1, self()]),
-%     ok = expect({ping, PID}),
-%     PID ! pong,
-%     ok = expect(finished).
+index_of_test() ->
+    ?assertEqual(erlnigma:index_of($A, reflectorA()), 1),
+    ?assertEqual(erlnigma:index_of($B, reflectorA()), 2),
+    ?assertEqual(erlnigma:index_of($C, reflectorA()), 3).
 
 % Tests required:
 % - Some tests to check that Reflector returns the result of frefl(x)

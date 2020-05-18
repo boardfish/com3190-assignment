@@ -11,12 +11,15 @@
 %% escript Entry point
 main(Args) ->
     io:format("Args: ~p~n", [Args]),
-    Out = spawn(erlnigma, receiver, [out]),
-    io:format("Spawning reflector.~n"),
-    Reflector = spawn(erlnigma, reflector, [self(), Out]),
-    io:format("Reflector PID: ~p~n", [Reflector]),
-    io:format("Broadcasting with args: ~p, ~p, ~p~n", [Reflector, in, $X]),
-    broadcast(Reflector, in, $X),
+    L = spawn(erlnigma, receiver, [l]),
+    R = spawn(erlnigma, receiver, [r]),
+    io:format("Spawning plugboard.~n"),
+    Plugboard = spawn(erlnigma, plugboard, [self(), [{$A, $E}, {$E, $A}], R, L]),
+    io:format("Plugboard PID: ~p~n", [Plugboard]),
+    io:format("Broadcasting with args: ~p, ~p, ~p~n", [Plugboard, l, $A]),
+    broadcast(Plugboard, l, $A),
+    io:format("Broadcasting with args: ~p, ~p, ~p~n", [Plugboard, r, $E]),
+    broadcast(Plugboard, r, $E),
     receive
       {close} -> erlang:halt(0)
     end.
@@ -62,6 +65,21 @@ reflector(Parent, Out) ->
   broadcast(Out, out, F_refl_result),
   io:format("Looping back.~n"),
   reflector(Parent, Out).
+
+plugboard(Parent, Plugboard, Right, Left) ->
+  io:format("New Plugboard initialised.~n"),
+  receive
+    {l, Value} ->
+      {F_plug_result,_} = lists:keyfind(Value, 2, Plugboard), % Unsure about this.
+      io:format("Received ~p on L, broadcasting ~p on R.~n", [Value, F_plug_result]),
+      broadcast(Right, l, F_plug_result),
+      plugboard(Parent, Plugboard, Right, Left);
+    {r, Value} ->
+      {F_plug_result,_} = lists:keyfind(Value, 2, Plugboard), % Unsure about this.
+      io:format("Received ~p on R, broadcasting ~p on L.~n", [Value, F_plug_result]),
+      broadcast(Left, r, F_plug_result),
+      plugboard(Parent, Plugboard, Right, Left)
+  end.
 
 
 %%====================================================================

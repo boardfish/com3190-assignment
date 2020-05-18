@@ -13,13 +13,13 @@ main(Args) ->
     io:format("Args: ~p~n", [Args]),
     L = spawn(erlnigma, receiver, [l]),
     R = spawn(erlnigma, receiver, [r]),
-    io:format("Spawning plugboard.~n"),
-    Plugboard = spawn(erlnigma, plugboard, [self(), [{$A, $E}, {$E, $A}], R, L]),
-    io:format("Plugboard PID: ~p~n", [Plugboard]),
-    io:format("Broadcasting with args: ~p, ~p, ~p~n", [Plugboard, l, $A]),
-    broadcast(Plugboard, l, $A),
-    io:format("Broadcasting with args: ~p, ~p, ~p~n", [Plugboard, r, $E]),
-    broadcast(Plugboard, r, $E),
+    io:format("Spawning rotor.~n"),
+    RotorFunction = spawn(erlnigma, rotorFunction, [self(), R, L]),
+    io:format("RotorFunction PID: ~p~n", [RotorFunction]),
+    io:format("Broadcasting with args: ~p, ~p, ~p~n", [RotorFunction, l, $A]),
+    broadcast(RotorFunction, l, $A),
+    io:format("Broadcasting with args: ~p, ~p, ~p~n", [RotorFunction, r, $E]),
+    broadcast(RotorFunction, r, $E),
     receive
       {close} -> erlang:halt(0)
     end.
@@ -80,6 +80,20 @@ plugboard(Parent, Plugboard, Right, Left) ->
       broadcast(Left, r, F_plug_result),
       plugboard(Parent, Plugboard, Right, Left)
   end.
+
+rotorFunction(Parent, Right, Left) ->
+  io:format("Calling rotorFunction."),
+  receive
+    {l, Value} ->
+      {F_rotor_result,_} = lists:keyfind(Value, 2, rotorI()), % Unsure about this.
+      io:format("Received ~p on L, broadcasting ~p on R.~n", [Value, F_rotor_result]),
+      broadcast(Right, l, F_rotor_result);
+    {r, Value} ->
+      {F_rotor_result,_} = lists:keyfind(Value, 2, rotorI()), % Unsure about this.
+      io:format("Received ~p on R, broadcasting ~p on L.~n", [Value, F_rotor_result]),
+      broadcast(Left, r, F_rotor_result)
+  end.
+
 
 
 %%====================================================================

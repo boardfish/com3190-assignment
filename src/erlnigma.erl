@@ -11,15 +11,16 @@
 %% escript Entry point
 main(Args) ->
     io:format("Args: ~p~n", [Args]),
-    L = spawn(erlnigma, receiver, [l]),
-    R = spawn(erlnigma, receiver, [r]),
+    Inc_l = spawn(erlnigma, receiver, [inc]),
     io:format("Spawning rotor.~n"),
-    RotorFunction = spawn(erlnigma, rotorFunction, [self(), R, L]),
-    io:format("RotorFunction PID: ~p~n", [RotorFunction]),
-    io:format("Broadcasting with args: ~p, ~p, ~p~n", [RotorFunction, l, $A]),
-    broadcast(RotorFunction, l, $A),
-    io:format("Broadcasting with args: ~p, ~p, ~p~n", [RotorFunction, r, $E]),
-    broadcast(RotorFunction, r, $E),
+    Rotor = spawn(erlnigma, rotor, [self(), Inc_l, 25, 3]),
+    io:format("RotorPID: ~p~n", [Rotor]),
+    io:format("Broadcasting with args: ~p, ~p, ~p~n", [Rotor, inc, $A]),
+    broadcast(Rotor, inc, $A),
+    io:format("Broadcasting with args: ~p, ~p, ~p~n", [Rotor, l, $A]),
+    broadcast(Rotor, l, $A),
+    io:format("Broadcasting with args: ~p, ~p, ~p~n", [Rotor, r, $A]),
+    broadcast(Rotor, r, $A),
     receive
       {close} -> erlang:halt(0)
     end.
@@ -96,7 +97,29 @@ rotorFunction(Parent, Right, Left) ->
   end.
 
 rotor(Parent, Inc_l, C, P) ->
-  receiver(inc, fun() -> rotor(Parent, Inc_l, C + 1, P + 1) end)
+  io:format("Hello, this is Rotor ~p ~p ~n", [C, P]),
+  receive
+    {inc, _} ->
+      case C of
+        26 ->
+          % send inc to incl
+          rotor(Parent, Inc_l, 0, P - 26);
+        _ ->
+          % Rotor(Parent, Inc_L, 0, P - 26
+          rotor(Parent, Inc_l, C + 1, P + 1)
+        end;
+    {l, Value} ->
+      io:format("Received ~p on L, broadcasting ~p on R.~n", [Value, "something"]),
+      % rotorFunction(Parent, );
+      rotor(Parent, Inc_l, C, P);
+    {r, Value} ->
+      io:format("Received ~p on R, broadcasting ~p on L.~n", [Value, "something"]),
+      % rotorFunction(Parent, )
+      rotor(Parent, Inc_l, C, P)
+    end.
+
+    % inc - new rotor
+    % l/r - forward to rotorfunction? I guess that's the equivalent of expanding the process.
 
 
 %%====================================================================

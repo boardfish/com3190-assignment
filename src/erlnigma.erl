@@ -81,6 +81,7 @@ plugboard(Parent, Plugboard, Right, Left) ->
       plugboard(Parent, Plugboard, Right, Left)
   end.
 
+% Todo: f_rotor-result is wrong, should take c and p
 rotorFunction(Parent, Right, Left) ->
   io:format("Calling rotorFunction."),
   receive
@@ -94,6 +95,8 @@ rotorFunction(Parent, Right, Left) ->
       broadcast(Left, r, F_rotor_result)
   end.
 
+rotor(Parent, Inc_l, C, P) ->
+  receiver(inc, fun() -> rotor(Parent, Inc_l, C + 1, P + 1) end)
 
 
 %%====================================================================

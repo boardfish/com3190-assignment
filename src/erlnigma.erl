@@ -11,11 +11,14 @@
 %% escript Entry point
 main(Args) ->
     io:format("Args: ~p~n", [Args]),
-    io:format("Spawning reflector.~n"),
-    Reflector = spawn(erlnigma, receiver, [self()]),
-    io:format("Reflector PID: ~p~n", [Reflector]),
-    io:format("Broadcasting with args: ~p, ~p, ~p~n", [Reflector, rcv, bar]),
-    broadcast(Reflector, rcv, bar),
+    Inc = spawn(erlnigma, receiver, [inc]),
+    io:format("Spawning keyboard.~n"),
+    Keyboard = spawn(erlnigma, keyboard, [self(), Inc]),
+    io:format("Keyboard PID: ~p~n", [Keyboard]),
+    io:format("Broadcasting with args: ~p, ~p, ~p~n", [Keyboard, key, x]),
+    broadcast(Keyboard, key, x),
+    broadcast(Keyboard, lamp, true),
+    broadcast(Keyboard, key, y),
     receive
       {close} -> erlang:halt(0)
     end.
@@ -26,17 +29,30 @@ main(Args) ->
 
 broadcast(Target, Channel, Value) ->
     io:format("-> ~p - ~p~n", [Channel, Value]),
-    Target ! {rcv, Value}.
+    Target ! {Channel, Value}.
 
-receiver(Parent) ->
-    io:format("foo~n"),
+receiver(Channel) ->
     receive
-      {rcv, Value} -> io:format("<- ~p~n", [Value]);
-      AnythingElse -> io:format("<- ~p~n", [AnythingElse])
+      {Channel, Value} -> io:format("<- [~p] ~p~n", [Channel, Value])
     end,
-    io:format("foo~n"),
-    Parent ! {close},
     ok.
+
+receiver(Channel, Callback) ->
+    receive
+      {Channel, Value} ->
+        io:format("<- [~p] ~p~n", [Channel, Value]),
+        Callback()
+    end,
+    ok.
+
+keyboard(Parent, Inc) ->
+  io:format("New keyboard.~n"),
+  io:format("Receiving key.~n"),
+  receiver(key),
+  io:format("Broadcasting inc.~n"),
+  broadcast(Inc, inc, 1),
+  io:format("Awaiting lamp.~n"),
+  receiver(lamp, fun() -> keyboard(Parent, Inc) end).
 
 %%====================================================================
 %% Internal functions

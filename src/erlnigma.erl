@@ -1,5 +1,7 @@
 -module(erlnigma).
+
 -include("enigma.hrl").
+
 -compile(export_all).
 
 %%====================================================================
@@ -9,21 +11,32 @@
 %% escript Entry point
 main(Args) ->
     io:format("Args: ~p~n", [Args]),
-    erlang:halt(0).
+    io:format("Spawning reflector.~n"),
+    Reflector = spawn(erlnigma, receiver, [self()]),
+    io:format("Reflector PID: ~p~n", [Reflector]),
+    io:format("Broadcasting with args: ~p, ~p, ~p~n", [Reflector, rcv, bar]),
+    broadcast(Reflector, rcv, bar),
+    receive
+      {close} -> erlang:halt(0)
+    end.
 
 %%====================================================================
 %% Helpers functions
 %%====================================================================
 
-broadcast(Parent,Receiver,Value) ->
-  Parent!{o,Receiver,{self(),Value}}.
+broadcast(Target, Channel, Value) ->
+    io:format("-> ~p - ~p~n", [Channel, Value]),
+    Target ! {rcv, Value}.
 
-receiver(Parent,Channel) ->
-  Parent!{i,Channel,{self(),0}},
-  receive
-    {i,Channel,{_, Result}} ->
-      Result
-    end.
+receiver(Parent) ->
+    io:format("foo~n"),
+    receive
+      {rcv, Value} -> io:format("<- ~p~n", [Value]);
+      AnythingElse -> io:format("<- ~p~n", [AnythingElse])
+    end,
+    io:format("foo~n"),
+    Parent ! {close},
+    ok.
 
 %%====================================================================
 %% Internal functions
@@ -33,26 +46,26 @@ receiver(Parent,Channel) ->
 % - Each process knows which one created it
 % - The rest of its arguments are processes that can talk to it, or it talks to
 
-% message schema - {[i/o],Channel_PID,contents}
-% reflector(Parent, In, Out) ->
-%   X = receiver(Parent,In),
-%   broadcast(Parent, Out, f_refl(X)),
-%   reflector(Parent, In, Out).
+% message schema - {Channel_PID,sender, contents}
 
-% f_refl(x) ->
-%   lists:filter(fun({X,Y}reflectorA()
-%   ok.
+%% Returns the index of a character in one of the rotor arrays, searching by
+%% first item.
+forward_index_of(Char, List) ->
+    string:str(lists:map(fun ({Key, _}) -> Key end, List),
+	       [Char]).
 
-index_of(Char, List) ->
-  string:str(lists:map(fun({Key, _}) -> Key end, List), [Char]).
+%% Returns the index of a character in one of the rotor arrays, searching by
+%% last item.
+backward_index_of(Char, List) ->
+    string:str(lists:map(fun ({_, Key}) -> Key end, List),
+	       [Char]).
 
 % http://erlang.org/eeps/eep-0043.html
 
-setup ( ReflectorName , RotorNames , RingSettings , PlugboardPairs , InitialSetting ) ->
-  ok. 
+setup(ReflectorName, RotorNames, RingSettings,
+      PlugboardPairs, InitialSetting) ->
+    ok.
 
-crypt (Enigma_PID, TextString) ->
-  ok.
+crypt(Enigma_PID, TextString) -> ok.
 
-kill (Enigma_PID) ->
-  ok.
+kill(Enigma_PID) -> ok.

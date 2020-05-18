@@ -2,6 +2,10 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+%% ========================
+%% Existing Tests
+%% ========================
+
 %% A simple test from
 %% http://gcc.eisbehr.de/manual/en/enigma.html
 simple_test() ->
@@ -39,3 +43,6 @@ scharnhorst_test() ->
     Res = enigma:crypt([$U,$Z,$V],Enigma,"YKAE NZAP MSCH ZBFO CUVM RMDP YCOF HADZ IZME FXTH FLOL PZLF GGBO TGOX GRET DWTJ IQHL MXVJ WKZU ASTR"),
     ?assertEqual("STEU EREJ TANA FJOR DJAN STAN DORT QUAA ACCC VIER NEUN NEUN ZWOF AHRT ZWON ULSM XXSC HARN HORS THCO",Res).
 
+%% =================================
+%% Additional Tests
+%% =================================

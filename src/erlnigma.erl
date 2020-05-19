@@ -9,7 +9,7 @@
 %%====================================================================
 
 message_broker(RegReceivers, UnsentMsgs) ->
-    io:format("Message Broker: ~p ~p ~p~n",
+    io:format("MB: ~p ~p ~p~n",
 	      [self(), RegReceivers, UnsentMsgs]),
     receive
       {broadcasts, Source, Channel, Value} ->
@@ -43,14 +43,11 @@ message_broker(RegReceivers, UnsentMsgs) ->
 main(Args) ->
     Parent = spawn(erlnigma, message_broker, [[], []]),
     L = spawn(erlnigma, receives, [Parent, l]),
-    R = spawn(erlnigma, receives, [Parent, r]),
-    io:format("Spawning rotor.~n"),
     Plugboard = spawn(erlnigma, plugboard, [Parent, [{$A, $E}, {$E, $A}], r, l]),
-    io:format("Plugboard PID: ~p~n", [Plugboard]),
-    io:format("Broadcasting with args: ~p, ~p, ~p~n", [Parent, l, $A]),
-    broadcasts(Parent, self(), l, $A),
-    io:format("Broadcasting with args: ~p, ~p, ~p~n", [Parent, r, $E]),
-    broadcasts(Parent, self(), r, $E),
+    io:format("PB: ~p~n", [Plugboard]),
+    io:format("BC: ~p, ~p, ~p~n", [Parent, r, $A]),
+    broadcasts(Parent, self(), r, $A),
+    % io:format("Broadcasting with args: ~p, ~p, ~p~n", [Parent, l, $E]),
     receive
       {close} -> erlang:halt(0)
     end.
@@ -69,7 +66,7 @@ receives(Parent, Channel) ->
     Parent ! {receives, Channel, self()},
     receive
       {receives, Channel, Value} ->
-	  io:format("<- [~5w] ~p~n", [Channel, Value]), Value
+	  io:format("<- [~5w ~p] ~p~n", [Channel, Parent, Value]), Value
     end.
 
 receives(Parent, Channel, Callback) ->
@@ -90,36 +87,28 @@ keyboard(Parent, Inc) ->
     receives(Parent, lamp, fun () -> keyboard(Parent, Inc) end).
 
 reflector(Parent, In, Out) ->
-    io:format("New reflector.~n"),
-    io:format("Receiving in.~n"),
+    io:format("[Reflector] New reflector.~n"),
+    io:format("[Reflector] Receiving in.~n"),
     Key = receives(Parent, In),
-    io:format("Broadcasting out key for ~p.~n", [Key]),
+    io:format("[Reflector] Broadcasting out key for ~p.~n", [Key]),
     {F_refl_result, _} = lists:keyfind(Key, 2,
 				       reflectorA()), % Unsure about this.
     broadcasts(Parent, self(), Out, F_refl_result),
-    io:format("Looping back.~n"),
+    io:format("[Reflector] Looping back.~n"),
     reflector(Parent, In, Out).
 
-plugboard(Parent, Plugboard, Right, Left) ->
-    io:format("New Plugboard initialised.~n"),
-    receive
-      {l, Value} ->
-	  {F_plug_result, _} = lists:keyfind(Value, 2,
+plugboard(Parent, Plugboard, Input, Output) ->
+    io:format("PB: New Plugboard initialised.~n"),
+    Key = receives(Parent, Input),
+	  {F_plug_result, _} = lists:keyfind(Key, 2,
 					     Plugboard), % Unsure about this.
-	  io:format("Received ~p on L, broadcasting ~p on "
-		    "R.~n",
-		    [Value, F_plug_result]),
-	  broadcasts(Parent, self(), Right, F_plug_result),
-	  plugboard(Parent, Plugboard, Right, Left);
-      {r, Value} ->
-	  {F_plug_result, _} = lists:keyfind(Value, 2,
-					     Plugboard), % Unsure about this.
-	  io:format("Received ~p on R, broadcasting ~p on "
-		    "L.~n",
-		    [Value, F_plug_result]),
-	  broadcasts(Parent, self(), Left, F_plug_result),
-	  plugboard(Parent, Plugboard, Right, Left)
-    end.
+	  io:format("PB: Received ~p on input, broadcasting ~p on "
+		    "output.~n",
+		    [Key, F_plug_result]),
+	  broadcasts(Parent, self(), Output, F_plug_result),
+    % Respond on the opposite channel this time.
+	  io:format("PB: New plugboard hours~n"),
+	  plugboard(Parent, Plugboard, Output, Input).
 
 % Todo: f_rotor-result is wrong, should take c and p
 rotorFunction(Parent, Right, Left) ->

@@ -42,10 +42,12 @@ message_broker(RegReceivers, UnsentMsgs) ->
 %% escript Entry point
 main(Args) ->
     Parent = spawn(erlnigma, message_broker, [[], []]),
-    Out = spawn(erlnigma, receives, [Parent, out]),
-    Reflector = spawn(erlnigma, reflector, [Parent, in, out]),
-    io:format("RE: ~p~n", [Reflector]),
-    broadcasts(Parent, self(), in, $A),
+    L = spawn(erlnigma, receives, [Parent, l]),
+    R = spawn(erlnigma, receives, [Parent, r]),
+    RotorFunction = spawn(erlnigma, rotorFunction, [Parent, r, l]),
+    io:format("RF: ~p~n", [RotorFunction]),
+    broadcasts(Parent, self(), r, $A),
+    broadcasts(Parent, self(), l, $Z),
     % io:format("Broadcasting with args: ~p, ~p, ~p~n", [Parent, l, $E]),
     receive
       {close} -> erlang:halt(0)
@@ -109,25 +111,26 @@ plugboard(Parent, Plugboard, Input, Output) ->
 	  io:format("PB: New plugboard hours~n"),
 	  plugboard(Parent, Plugboard, Output, Input).
 
-% Todo: f_rotor-result is wrong, should take c and p
+% Todo: calculate f_rotor-result
+% Todo: refactor, there's duplication here
 rotorFunction(Parent, Right, Left) ->
     io:format("Calling rotorFunction."),
-    receive
-      {l, Value} ->
-	  {F_rotor_result, _} = lists:keyfind(Value, 2,
+    Key = receives(Parent, Right),
+	  {F_rotor_result, _} = lists:keyfind(Key, 2,
 					      rotorI()), % Unsure about this.
-	  io:format("Received ~p on L, broadcasting ~p on "
-		    "R.~n",
-		    [Value, F_rotor_result]),
-	  broadcasts(Parent, self(), l, F_rotor_result);
-      {r, Value} ->
-	  {F_rotor_result, _} = lists:keyfind(Value, 2,
+	  io:format("RF: Received ~p on right, broadcasting ~p on "
+		    "left.~n",
+		    [Key, F_rotor_result]),
+	  broadcasts(Parent, self(), Left, F_rotor_result),
+    % Respond on the opposite channel this time.
+	  io:format("RF: Switcheroo time."),
+    Key = receives(Parent, Left),
+	  {F_rotor_result, _} = lists:keyfind(Key, 2,
 					      rotorI()), % Unsure about this.
-	  io:format("Received ~p on R, broadcasting ~p on "
-		    "L.~n",
-		    [Value, F_rotor_result]),
-	  broadcasts(Parent, self(), r, F_rotor_result)
-    end.
+	  io:format("RF: Received ~p on left, broadcasting ~p on "
+		    "right.~n",
+		    [Key, F_rotor_result]),
+	  broadcasts(Parent, self(), Right, F_rotor_result).
 
 rotor(Parent, Inc_l, C, P) ->
     io:format("Hello, this is Rotor ~p ~p ~n", [C, P]),

@@ -42,14 +42,15 @@ message_broker(RegReceivers, UnsentMsgs) ->
 %% escript Entry point
 main(Args) ->
     Parent = spawn(erlnigma, message_broker, [[], []]),
-    Inc_L = spawn(erlnigma, receives, [Parent, incl]),
-    Rotor = spawn(erlnigma, keyboard, [Parent, incl]),
-    io:format("RotorPID: ~p~n", [Rotor]),
-    broadcasts(Parent, self(), key, $A),
-    broadcasts(Parent, self(), lamp, $A),
-    % broadcasts(Parent, self(), l, $A),
-    % broadcasts(Parent, self(), r, $A),
-    receive {close} -> erlang:halt(0) end.
+    Out = spawn(erlnigma, receives, [Parent, out]),
+    io:format("Spawning reflector.~n"),
+    Reflector = spawn(erlnigma, reflector, [Parent, in, out]),
+    io:format("Reflector PID: ~p~n", [Reflector]),
+    io:format("Broadcasting with args: ~p, ~p, ~p, ~p~n", [Parent, self(), in, $X]),
+    broadcasts(Parent, self(), in, $X),
+    receive
+      {close} -> erlang:halt(0)
+    end.
 
 %%====================================================================
 %% Helper functions
@@ -84,16 +85,16 @@ keyboard(Parent, Inc) ->
     io:format("Awaiting lamp.~n"),
     receives(Parent, lamp, fun () -> keyboard(Parent, Inc) end).
 
-reflector(Parent, Out) ->
+reflector(Parent, In, Out) ->
     io:format("New reflector.~n"),
     io:format("Receiving in.~n"),
-    Key = receives(Parent, in),
+    Key = receives(Parent, In),
     io:format("Broadcasting out key for ~p.~n", [Key]),
     {F_refl_result, _} = lists:keyfind(Key, 2,
 				       reflectorA()), % Unsure about this.
-    broadcasts(Parent, self(), out, F_refl_result),
+    broadcasts(Parent, self(), Out, F_refl_result),
     io:format("Looping back.~n"),
-    reflector(Parent, Out).
+    reflector(Parent, In, Out).
 
 plugboard(Parent, Plugboard, Right, Left) ->
     io:format("New Plugboard initialised.~n"),

@@ -25,15 +25,18 @@ I identified the following problems:
 
 - After $Plugboard$ has output the result of $f_{plug}(x)$ to whichever channel
   it should use, it can still synchronise with messages on the same side of the
-  board. Practically, this means that if multiple $Keyboard$s were used with
+  board. This should be resolved by accepting from R first, then accepting from
+  L.   
+  Practically, this means that if multiple $Keyboard$s were used with
   $Enigma$, more characters could be typed on other $Keyboard$s and sent through
-  the $Plugboard$. $Rotor$s have a similar issue that would allow the characters
+  the $Plugboard$. 
+- $Rotor$s have a similar issue that would allow the characters
   to continue through $Enigma$ to the point of displaying the character. In this
   instance, there could also be race conditions between incrementing the rotors
   and sending the encrypted character. These are made void by the fact that
   $Keyboard$ cannot synchronise with inputs until the $\overline{inc}$ signal is
   received through the plugboard - that is, any transmissions on the $Rotors$
-  have already occurred. Under this assumption, I will not fix this issue.
+  have already occurred.
 - After a $Rotor$ has synchronised with $l$ or $r$ once, it will not synchronise
   with $inc_r$ again. It enters a recursion on $RotorFunction(p)$, which cannot
   at any point synchronise with $inc_r$. What this means practically is that
@@ -74,6 +77,17 @@ Rotor(c,p) & = & inc_r . Rotor(c+1,p+1) + RotorFunction(p) . Rotor(c,p) \\
 \end{math}
 \end{center}
 
+$Plugboard$ should only respond from the right first.
+
+\begin{center}
+\begin{math}
+\begin{array}{lcl}
+Plugboard & = & r(x) . \overline{l}(f_{plug}(x)) . \\
+ &   & l(x) . \overline{r}(f_{plug}(x)) . Plugboard \\
+\end{array}
+\end{math}
+\end{center}
+
 ---
 
 \begin{figure}[H]
@@ -84,8 +98,8 @@ Reflector & = & in(x) . \overline{out}(f_{refl}(x)) . Reflector  \\
 \\
 Keyboard & = & \overline{key}(x).\overline{inc}.lamp(y).Keyboard \\
 \\
-Plugboard & = & r(x) . \overline{l}(f_{plug}(x)) . Plugboard \\
- & + & l(x) . \overline{r}(f_{plug}(x)) . Plugboard \\
+Plugboard & = & r(x) . \overline{l}(f_{plug}(x)) . \\
+ &   & l(x) . \overline{r}(f_{plug}(x)) . Plugboard \\
 \\
 Rotor(26,p) & = & inc_r . \overline{inc_l} . Rotor(0,p-26) + RotorFunction(p) . Rotor(0,p-26) \\
 Rotor(c,p) & = & inc_r . Rotor(c+1,p+1) + RotorFunction(p) . Rotor(c,p) \\

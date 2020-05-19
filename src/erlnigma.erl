@@ -158,26 +158,6 @@ rotor(Parent, Inc_L, Inc_R, Right, Left, C, P) ->
 %% Internal functions
 %%====================================================================
 
-% Schema for each part is as follows:
-% - Each process knows which one created it
-% - The rest of its arguments are processes that can talk to it, or it talks to
-
-% message schema - {Channel_PID,sender, contents}
-
-%% Returns the index of a character in one of the rotor arrays, searching by
-%% first item.
-forward_index_of(Char, List) ->
-    string:str(lists:map(fun ({Key, _}) -> Key end, List),
-	       [Char]).
-
-%% Returns the index of a character in one of the rotor arrays, searching by
-%% last item.
-backward_index_of(Char, List) ->
-    string:str(lists:map(fun ({_, Key}) -> Key end, List),
-	       [Char]).
-
-% http://erlang.org/eeps/eep-0043.html
-
 setup(ReflectorName, RotorNames, RingSettings,
       PlugboardPairs, InitialSetting) ->
     % Keyboard sends on Key and Inc

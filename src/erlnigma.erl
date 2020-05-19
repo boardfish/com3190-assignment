@@ -42,12 +42,13 @@ message_broker(RegReceivers, UnsentMsgs) ->
 %% escript Entry point
 main(Args) ->
     Parent = spawn(erlnigma, message_broker, [[], []]),
+    Rotor = spawn(erlnigma, rotor, [Parent, incl, incr, r, l, 0, 0]),
+    IncR = spawn(erlnigma, receives, [Parent, incr]),
     L = spawn(erlnigma, receives, [Parent, l]),
-    R = spawn(erlnigma, receives, [Parent, r]),
-    RotorFunction = spawn(erlnigma, rotorFunction, [Parent, r, l]),
-    io:format("RF: ~p~n", [RotorFunction]),
+    io:format("RF: ~p~n", [Rotor]),
+    broadcasts(Parent, self(), incl, 1),
     broadcasts(Parent, self(), r, $A),
-    broadcasts(Parent, self(), l, $Z),
+    broadcasts(Parent, self(), l, $A),
     % io:format("Broadcasting with args: ~p, ~p, ~p~n", [Parent, l, $E]),
     receive
       {close} -> erlang:halt(0)
@@ -114,7 +115,7 @@ plugboard(Parent, Plugboard, Input, Output) ->
 % Todo: calculate f_rotor-result
 % Todo: refactor, there's duplication here
 rotorFunction(Parent, Right, Left) ->
-    io:format("Calling rotorFunction."),
+    io:format("Calling rotorFunction.~n"),
     Key = receives(Parent, Right),
 	  {F_rotor_result, _} = lists:keyfind(Key, 2,
 					      rotorI()), % Unsure about this.
@@ -132,34 +133,26 @@ rotorFunction(Parent, Right, Left) ->
 		    [Key, F_rotor_result]),
 	  broadcasts(Parent, self(), Right, F_rotor_result).
 
-rotor(Parent, Inc_l, C, P) ->
+rotor(Parent, Inc_L, Inc_R, Right, Left, C, P) ->
     io:format("Hello, this is Rotor ~p ~p ~n", [C, P]),
-    receive
-      {inc, _} ->
+    IncL = receives(Parent, Inc_L),
 	  case C of
 	    26 ->
-		% send inc to incl
-		rotor(Parent, Inc_l, 0, P - 26);
+        % send inc to incl
+        broadcasts(Parent, self(), Inc_R, 
+          case IncL of
+            1 ->
+              1;
+            _ ->
+              0
+            end),
+        rotorFunction(Parent, Right, Left),
+        rotor(Parent, Inc_L, Inc_R, Right, Left, 0, P - 26);
 	    _ ->
-		% Rotor(Parent, Inc_L, 0, P - 26
-		rotor(Parent, Inc_l, C + 1, P + 1)
-	  end;
-      {l, Value} ->
-	  io:format("Received ~p on L, broadcasting ~p on "
-		    "R.~n",
-		    [Value, "something"]),
-	  % rotorFunction(Parent, );
-	  rotor(Parent, Inc_l, C, P);
-      {r, Value} ->
-	  io:format("Received ~p on R, broadcasting ~p on "
-		    "L.~n",
-		    [Value, "something"]),
-	  % rotorFunction(Parent, )
-	  rotor(Parent, Inc_l, C, P)
+        broadcasts(Parent, self(), Inc_R, 0),
+        rotorFunction(Parent, Right, Left),
+        rotor(Parent, Inc_L, Inc_R, Right, Left, C + 1, P + 1)
     end.
-
-    % inc - new rotor
-    % l/r - forward to rotorfunction? I guess that's the equivalent of expanding the process.
 
 %%====================================================================
 %% Internal functions

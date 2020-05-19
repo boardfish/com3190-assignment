@@ -115,10 +115,10 @@ Keyboard & = & \overline{key}(x).\overline{inc}.lamp(y).Keyboard \\
 Plugboard & = & r(x) . \overline{l}(f_{plug}(x)) . \\
  &   & l(x) . \overline{r}(f_{plug}(x)) . Plugboard \\
 \\
-Rotor(26,p) & = & inc_r . \overline{inc_l} . Rotor(0,p-26) + RotorFunction(p) . Rotor(0,p-26) \\
+Rotor(26,p) & = & inc_r . \overline{inc_l} . Rotor(0,p-26) + RotorFunction(p) . Rotor(26,p) \\
 Rotor(c,p) & = & inc_r . Rotor(c+1,p+1) + RotorFunction(p) . Rotor(c,p) \\
-RotorFunction(p) &  =  & l(x) . \overline{r}(f_{rotor}(p,x)) \\  
-		      &  +  & r(x) . \overline{l}(\overline{f_{rotor}}(p,x)) \\  
+RotorFunction(p) &  =  & r(x) . \overline{l}(f_{rotor}(p,x)). \\  
+		      &     & l(x) . \overline{r}(f_{rotor}(p,x)) \\  
 \\
 Enigma & = & Reflector[ref/in,ref/out] \\
  & | & Rotor(c_3,p_3)[ref/l,m1/r,i3/inc_r] \\

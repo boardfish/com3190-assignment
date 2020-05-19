@@ -26,7 +26,7 @@ message_broker(RegReceivers, UnsentMsgs) ->
 			       UnsentMsgs)
 	  end;
       {receives, Channel, Target} ->
-    io:format("~p <- ~p: ~p~n", [Target, Channel]),
+    io:format("~p <- ~p~n", [Target, Channel]),
 	  case lists:keyfind(Channel, 1, UnsentMsgs) of
 	    false ->
 		message_broker([{Channel, Target} | RegReceivers],
@@ -42,11 +42,13 @@ message_broker(RegReceivers, UnsentMsgs) ->
 %% escript Entry point
 main(Args) ->
     Parent = spawn(erlnigma, message_broker, [[], []]),
-    Rotor = spawn(erlnigma, rotor, [Parent, incl, 25, 3]),
+    Inc_L = spawn(erlnigma, receives, [Parent, incl]),
+    Rotor = spawn(erlnigma, keyboard, [Parent, incl]),
     io:format("RotorPID: ~p~n", [Rotor]),
-    broadcasts(Parent, self(), incl, $A),
-    broadcasts(Parent, self(), l, $A),
-    broadcasts(Parent, self(), r, $A),
+    broadcasts(Parent, self(), key, $A),
+    broadcasts(Parent, self(), lamp, $A),
+    % broadcasts(Parent, self(), l, $A),
+    % broadcasts(Parent, self(), r, $A),
     receive {close} -> erlang:halt(0) end.
 
 %%====================================================================
@@ -62,14 +64,14 @@ receives(Parent, Channel) ->
     Parent ! {receives, Channel, self()},
     receive
       {receives, Channel, Value} ->
-	  io:format("<- [~5w ~p] ~p~n", [Channel, Value]), Value
+	  io:format("<- [~5w] ~p~n", [Channel, Value]), Value
     end.
 
 receives(Parent, Channel, Callback) ->
     Parent ! {receives, Channel, self()},
     receive
-      {Source, Channel, Value} ->
-	  io:format("<- [~p ~p] ~p~n", [Channel, Source, Value]),
+      {receives, Channel, Value} ->
+	  io:format("<- [~5w] ~p~n", [Channel, Value]),
 	  Callback()
     end.
 
@@ -78,9 +80,9 @@ keyboard(Parent, Inc) ->
     io:format("Receiving key.~n"),
     receives(Parent, key),
     io:format("Broadcasting inc.~n"),
-    broadcasts(Parent, self(), inc, 1),
+    broadcasts(Parent, self(), Inc, 1),
     io:format("Awaiting lamp.~n"),
-    receives(lamp, fun () -> keyboard(Parent, Inc) end).
+    receives(Parent, lamp, fun () -> keyboard(Parent, Inc) end).
 
 reflector(Parent, Out) ->
     io:format("New reflector.~n"),

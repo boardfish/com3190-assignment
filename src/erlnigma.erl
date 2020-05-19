@@ -42,15 +42,19 @@ message_broker(RegReceivers, UnsentMsgs) ->
 %% escript Entry point
 main(Args) ->
     Parent = spawn(erlnigma, message_broker, [[], []]),
-    Out = spawn(erlnigma, receives, [Parent, out]),
-    io:format("Spawning reflector.~n"),
-    Reflector = spawn(erlnigma, reflector, [Parent, in, out]),
-    io:format("Reflector PID: ~p~n", [Reflector]),
-    io:format("Broadcasting with args: ~p, ~p, ~p, ~p~n", [Parent, self(), in, $X]),
-    broadcasts(Parent, self(), in, $X),
+    L = spawn(erlnigma, receives, [Parent, l]),
+    R = spawn(erlnigma, receives, [Parent, r]),
+    io:format("Spawning rotor.~n"),
+    Plugboard = spawn(erlnigma, plugboard, [Parent, [{$A, $E}, {$E, $A}], r, l]),
+    io:format("Plugboard PID: ~p~n", [Plugboard]),
+    io:format("Broadcasting with args: ~p, ~p, ~p~n", [Parent, l, $A]),
+    broadcasts(Parent, self(), l, $A),
+    io:format("Broadcasting with args: ~p, ~p, ~p~n", [Parent, r, $E]),
+    broadcasts(Parent, self(), r, $E),
     receive
       {close} -> erlang:halt(0)
     end.
+
 
 %%====================================================================
 %% Helper functions
@@ -105,7 +109,7 @@ plugboard(Parent, Plugboard, Right, Left) ->
 	  io:format("Received ~p on L, broadcasting ~p on "
 		    "R.~n",
 		    [Value, F_plug_result]),
-	  broadcasts(Parent, self(), r, F_plug_result),
+	  broadcasts(Parent, self(), Right, F_plug_result),
 	  plugboard(Parent, Plugboard, Right, Left);
       {r, Value} ->
 	  {F_plug_result, _} = lists:keyfind(Value, 2,
@@ -113,7 +117,7 @@ plugboard(Parent, Plugboard, Right, Left) ->
 	  io:format("Received ~p on R, broadcasting ~p on "
 		    "L.~n",
 		    [Value, F_plug_result]),
-	  broadcasts(Parent, self(), l, F_plug_result),
+	  broadcasts(Parent, self(), Left, F_plug_result),
 	  plugboard(Parent, Plugboard, Right, Left)
     end.
 

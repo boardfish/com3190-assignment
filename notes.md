@@ -49,24 +49,38 @@ Enigma system, and explain briefly how your version overcomes the problems you
 identified in (a).**
 
 <!--
-Keep Rotor as is, but replace the recursion on RotorFunction(p) with Rotor(c,p)?
-RotorFunction then needs to take (c,p), though. Refactor.
+normal rotor:
+triggered by incr, then
+pass 0 to incl
+take r, send frotor to l
+switch it up
+initialise new rotor with c+1, p+1
+
+26 rotor:
+triggered by incr, then
+if incr is 1, pass 1 to incl (triggers level up in next rotor), else pass it 0
+take r, send frotor to l
+switch it up
+initialise new rotor with 0, p-26
 -->
 
-$RotorFunction$ should not be recursive:
+$RotorFunction$ should not be recursive or provide a choice. It should receive
+from the right, then the left, to ensure that data flows both ways without an
+increment happening during the flow of data through the machine:
 
 \begin{center}
 \begin{math}
 \begin{array}{lcl}
-RotorFunction(p) &  =  & l(x) . \overline{r}(f_{rotor}(p,x)) \\  
-		      &  +  & r(x) . \overline{l}(\overline{f_{rotor}}(p,x)) \\  
+RotorFunction(p) &  =  & r(x) . \overline{l}(f_{rotor}(p,x)). \\  
+		      &     & l(x) . \overline{r}(f_{rotor}(p,x)) \\  
 \\
 \end{array}
 \end{math}
 \end{center}
 
-Instead, choosing $RotorFunction$ should result in a recursion on $Rotor$. This
-means that $Rotor$ can respond to $inc_r$.
+Instead, choosing $RotorFunction$ should follow with a recursion on $Rotor$.
+This means that $Rotor$ responds to $inc_r$ when data is not flowing through the
+machine.
 
 \begin{center}
 \begin{math}
@@ -77,7 +91,7 @@ Rotor(c,p) & = & inc_r . Rotor(c+1,p+1) + RotorFunction(p) . Rotor(c,p) \\
 \end{math}
 \end{center}
 
-$Plugboard$ should only respond from the right first.
+$Plugboard$ should only respond from the right first, similarly:
 
 \begin{center}
 \begin{math}

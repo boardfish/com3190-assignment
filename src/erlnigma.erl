@@ -42,11 +42,10 @@ message_broker(RegReceivers, UnsentMsgs) ->
 %% escript Entry point
 main(Args) ->
     Parent = spawn(erlnigma, message_broker, [[], []]),
-    L = spawn(erlnigma, receives, [Parent, l]),
-    Plugboard = spawn(erlnigma, plugboard, [Parent, [{$A, $E}, {$E, $A}], r, l]),
-    io:format("PB: ~p~n", [Plugboard]),
-    io:format("BC: ~p, ~p, ~p~n", [Parent, r, $A]),
-    broadcasts(Parent, self(), r, $A),
+    Out = spawn(erlnigma, receives, [Parent, out]),
+    Reflector = spawn(erlnigma, reflector, [Parent, in, out]),
+    io:format("RE: ~p~n", [Reflector]),
+    broadcasts(Parent, self(), in, $A),
     % io:format("Broadcasting with args: ~p, ~p, ~p~n", [Parent, l, $E]),
     receive
       {close} -> erlang:halt(0)
@@ -58,7 +57,7 @@ main(Args) ->
 %%====================================================================
 
 broadcasts(Target, Source, Channel, Value) ->
-    io:format("-> [~5w ~p] ~p~n", [Channel, Source, Value]),
+    io:format("BC: ~p, ~p, ~p~n", [Target, Channel, Value]),
     Target ! {broadcasts, Source, Channel, Value},
     receive {ok, {broadcasts, Channel, Value}} -> ok end.
 
@@ -87,14 +86,14 @@ keyboard(Parent, Inc) ->
     receives(Parent, lamp, fun () -> keyboard(Parent, Inc) end).
 
 reflector(Parent, In, Out) ->
-    io:format("[Reflector] New reflector.~n"),
-    io:format("[Reflector] Receiving in.~n"),
+    io:format("RE: New reflector.~n"),
+    io:format("RE: Receiving in.~n"),
     Key = receives(Parent, In),
-    io:format("[Reflector] Broadcasting out key for ~p.~n", [Key]),
-    {F_refl_result, _} = lists:keyfind(Key, 2,
+    io:format("RE: Broadcasting out key for ~p.~n", [Key]),
+    {_, F_refl_result} = lists:keyfind(Key, 1,
 				       reflectorA()), % Unsure about this.
     broadcasts(Parent, self(), Out, F_refl_result),
-    io:format("[Reflector] Looping back.~n"),
+    io:format("RE: Looping back.~n"),
     reflector(Parent, In, Out).
 
 plugboard(Parent, Plugboard, Input, Output) ->

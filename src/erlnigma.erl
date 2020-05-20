@@ -138,10 +138,9 @@ message_broker(RegReceivers, UnsentMsgs) ->
 	  end
     end.
 
-% Target is usually the parent process (the Enigma itself, which runs the
-% message broker). Source gives the PID of the process that called for the
-% broadcast, for debug reasons. Channel is an atom, and Value is the message
-% content.
+% Target should be a message broker. Source gives the PID of the process that
+% called for the broadcast, for debug reasons. Channel is an atom, and Value is
+% the message content.
 broadcasts(Target, Source, Channel, Value) ->
     io:format("BC: ~p, ~p, ~p~n", [Target, Channel, Value]),
     Target ! {broadcasts, Source, Channel, Value},

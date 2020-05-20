@@ -1,4 +1,4 @@
-{application, erlnigma,
+{application, enigma,
  [{description, "An escript"},
   {vsn, "0.1.0"},
   {registered, []},

@@ -1,4 +1,4 @@
--module(erlnigma).
+-module(enigma).
 
 -include("enigma.hrl").
 
@@ -22,11 +22,11 @@ main(Args) ->
     io:format("~p~n", [listFor(rotor, "VIII")]),
     io:format("~p~n", [listFor(rotor, "Beta")]),
     io:format("~p~n", [listFor(rotor, "Gamma")]),
-    % Parent = spawn(erlnigma, message_broker, [[], []]),
-    % Rotor = spawn(erlnigma, rotor,
-		%   [Parent, incl, incr, r, l, 0, 0]),
-    % IncR = spawn(erlnigma, receives, [Parent, incr]),
-    % L = spawn(erlnigma, receives, [Parent, l]),
+    % Parent = spawn(enigma, message_broker, [[], []]),
+    % Rotor = spawn(enigma, rotor,
+    %   [Parent, incl, incr, r, l, 0, 0]),
+    % IncR = spawn(enigma, receives, [Parent, incr]),
+    % L = spawn(enigma, receives, [Parent, l]),
     % io:format("RF: ~p~n", [Rotor]),
     % broadcasts(Parent, self(), incl, 1),
     % broadcasts(Parent, self(), r, 69),
@@ -40,26 +40,25 @@ normaliseAsciiNum(Num) -> Num rem 25 + 50.
 %% Enigma parts
 %%====================================================================
 
-keyboard(Parent, Inc) ->
+keyboard(Parent, Keys, Lamp, Inc) ->
     io:format("New keyboard.~n"),
     io:format("Receiving key.~n"),
-    receives(Parent, key),
+    receives(Parent, Keys),
     io:format("Broadcasting inc.~n"),
     broadcasts(Parent, self(), Inc, 1),
     io:format("Awaiting lamp.~n"),
-    receives(Parent, lamp,
-	     fun () -> keyboard(Parent, Inc) end).
+    receives(Parent, Lamp,
+	     fun () -> keyboard(Parent, Keys, Lamp, Inc) end).
 
-reflector(Parent, In, Out) ->
+reflector(Parent, In, Out, Reflector) ->
     io:format("RE: New reflector.~n"),
     io:format("RE: Receiving in.~n"),
     Key = receives(Parent, In),
     io:format("RE: Broadcasting out key for ~p.~n", [Key]),
-    {_, F_refl_result} = lists:keyfind(Key, 1,
-				       reflectorA()), % Unsure about this.
+    F_refl_result = f_refl(Reflector, Key),
     broadcasts(Parent, self(), Out, F_refl_result),
     io:format("RE: Looping back.~n"),
-    reflector(Parent, In, Out).
+    reflector(Parent, In, Out, Reflector).
 
 f_refl(Reflector, Input) ->
     case string:str(lists:map(fun ({Key, _}) -> Key end,
@@ -109,7 +108,7 @@ rotorFunction(Parent, Right, Left, Rotor, P) ->
 rotorPass(Parent, Input, EncryptionFunction, Output,
 	  Rotor, P) ->
     Key = receives(Parent, Input),
-    F_rotor_result = erlnigma:EncryptionFunction(Rotor, P,
+    F_rotor_result = enigma:EncryptionFunction(Rotor, P,
 						 Key),
     broadcasts(Parent, self(), Output, F_rotor_result).
 
@@ -214,20 +213,47 @@ receives(Parent, Channel, Callback) ->
 % Takes an atom and a string, and returns the return value of the corresponding
 % function in enigma.hrl.
 listFor(Type, Name) ->
-  FunctionName = list_to_atom(lists:flatten([atom_to_list(Type), Name])),
-  erlang:apply(erlnigma, FunctionName, []).
+    FunctionName =
+	list_to_atom(lists:flatten([atom_to_list(Type), Name])),
+    enigma:FunctionName().
+
+% generateRotors(Parent, RotorNames, RingSettings, InitialSetting) ->
+%   InputChannels = {m1, m2, m3},
+%   OutputChannels = {ref, m1, m2},
+%   rotor(Parent, incl, incr, right, left, c, p) element(1, RotorNames)
+%   % for each rotorName:
+%   Rotor = listFor(rotor, RotorName)
+%   {
+%     rotor(Parent, )
+%   }
 
 %%====================================================================
 %% Exported functions
 %%====================================================================
 
+enigma(ReflectorName, RotorNames, RingSettings,
+      PlugboardPairs, InitialSetting) ->
+    Reflector = spawn(enigma, reflector,
+		      [self(), ref, ref, listFor(reflector, ReflectorName)]),
+    Rotor3 = spawn(enigma, rotor,
+		   [self(), none, i3, m1, ref, element(1, RingSettings),
+		    element(1, InitialSetting)]),
+    Rotor2 = spawn(enigma, rotor,
+		   [self(), i3, i2, m2, m1, element(2, RingSettings),
+		    element(2, InitialSetting)]),
+    Rotor2 = spawn(enigma, rotor,
+		   [self(), i2, i1, m3, m2, element(3, RingSettings),
+		    element(3, InitialSetting)]),
+    Plugboard = spawn(enigma, plugboard,
+		      [self(), PlugboardPairs, keys, m3]),
+    Keyboard = spawn(enigma, keyboard,
+		     [self(), keys, lamp, i1]),
+    message_broker([], []).
+
 setup(ReflectorName, RotorNames, RingSettings,
       PlugboardPairs, InitialSetting) ->
-    % Keyboard sends on Key and Inc
-    % Plugboard sends on L and R
-    % Rotors send on L, R and Inc
-    % Reflector sends on Out
-    ok.
+    spawn(enigma, enigma, [ReflectorName, RotorNames, RingSettings,
+      PlugboardPairs, InitialSetting]).
 
 crypt(Enigma_PID, TextString) -> ok.
 

@@ -84,7 +84,7 @@ f_plug(Plugboard, Input) -> f_refl(Plugboard, Input).
 rotorFunction(Parent, Right, Left, P) ->
     io:format("Calling rotorFunction.~n"),
     Key = receives(Parent, Right),
-    F_rotor_result = inverse_f_rotor(rotorI(), P, Key),
+    F_rotor_result = f_rotor(rotorI(), P, Key),
     io:format("RF: Received ~p on right, broadcasting "
 	      "~p on left.~n",
 	      [Key, F_rotor_result]),

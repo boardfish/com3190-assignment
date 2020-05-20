@@ -8,14 +8,14 @@
 %% Gets called by scripts/run
 main(Args) ->
     Parent = spawn(erlnigma, message_broker, [[], []]),
-    Rotor = spawn(erlnigma, rotor, [Parent, incl, incr, r, l, 0, 0]),
-    IncR = spawn(erlnigma, receives, [Parent, incr]),
-    L = spawn(erlnigma, receives, [Parent, l]),
-    io:format("RF: ~p~n", [Rotor]),
-    broadcasts(Parent, self(), incl, 1),
-    broadcasts(Parent, self(), r, $A),
-    % broadcasts(Parent, self(), l, $A),
-    % io:format("Broadcasting with args: ~p, ~p, ~p~n", [Parent, l, $E]),
+     Rotor = spawn(erlnigma, rotor, [Parent, incl, incr, r, l, 0, 0]),
+     IncR = spawn(erlnigma, receives, [Parent, incr]),
+     L = spawn(erlnigma, receives, [Parent, l]),
+     io:format("RF: ~p~n", [Rotor]),
+     broadcasts(Parent, self(), incl, 1),
+     broadcasts(Parent, self(), r, $A),
+     % broadcasts(Parent, self(), l, $A),
+     % io:format("Broadcasting with args: ~p, ~p, ~p~n", [Parent, l, $E]),
     receive
       {close} -> erlang:halt(0)
     end.
@@ -57,7 +57,7 @@ f_refl(Reflector, Input) ->
 
 % If a match wasn't found on the first pass, throw in an arbitrary third
 % argument to search by the second value of the tuple.
-f_refl(Reflector, Input, LastOne) ->
+f_refl(Reflector, Input, _) ->
   case string:str(lists:map(fun ({_, Key}) -> Key end,
 				    Reflector),
 			  [Input]) of
@@ -119,9 +119,9 @@ rotor(Parent, Inc_L, Inc_R, Right, Left, C, P) ->
 
 f_rotor(Rotor, P, X) ->
   io:format("Calling frotor with P = ~p and X = ~p~n", [P, X]),
-  NewCharacterPosition = X + P,
-  io:format("Result: ~p~n", [NewCharacterPosition]),
-  element(2, lists:keyfind(NewCharacterPosition, 1, Rotor)).
+  NewCharacter = X + P,
+  element(2, lists:keyfind(NewCharacter, 1, Rotor)).
+
 
 %%====================================================================
 %% Helper functions

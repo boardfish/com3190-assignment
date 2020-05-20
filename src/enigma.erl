@@ -97,19 +97,21 @@ rotorPass(Parent, Input, EncryptionFunction, Output,
 
 rotor(Parent, Inc_L, Inc_R, Right, Left, C, P) ->
     io:format("RO: ~p ~p ~p ~n", [self(), C, P]),
-    IncL = receives(Parent, Inc_L),
+    io:format("RO: ~p receives on ~p ~n", [self(), Inc_R]),
+    IncR = receives(Parent, Inc_R),
     case C of
       26 ->
 	  % send inc to incl
-	  broadcasts(Parent, self(), Inc_R,
-		     case IncL of
+	  broadcasts(Parent, self(), Inc_L,
+		     case IncR of
 		       1 -> 1;
 		       _ -> 0
 		     end),
+    io:format("RO: rotorFunction is go for ~p~n", [self()]),
 	  rotorFunction(Parent, Right, Left, rotorI(), P),
 	  rotor(Parent, Inc_L, Inc_R, Right, Left, 0, P - 26);
       _ ->
-	  broadcasts(Parent, self(), Inc_R, 0),
+	  broadcasts(Parent, self(), Inc_L, 0),
 	  rotorFunction(Parent, Right, Left, rotorI(), P),
 	  rotor(Parent, Inc_L, Inc_R, Right, Left, C + 1, P + 1)
     end.
@@ -117,7 +119,8 @@ rotor(Parent, Inc_L, Inc_R, Right, Left, C, P) ->
 f_rotor(Rotor, P, X) ->
     io:format("Calling frotor with P = ~p and X = ~p~n",
 	      [P, X]),
-    NewCharacter = X + P,
+    NewCharacter = ((X + P) rem 26) + $A,
+    io:format("PUTSBASEDDEBUG: character lookup for ~p: ~p~n", [NewCharacter, lists:keyfind(NewCharacter, 1, Rotor)]),
     element(2, lists:keyfind(NewCharacter, 1, Rotor)).
 
 inverse_f_rotor(Rotor, P, X) ->
@@ -218,6 +221,7 @@ enigma(ReflectorName, RotorNames, RingSettings,
       PlugboardPairs, InitialSetting) ->
     Reflector = spawn(enigma, reflector,
 		      [self(), ref, ref, listFor(reflector, ReflectorName)]),
+% rotor(Parent, Inc_L, Inc_R, Right, Left, C, P) ->
     Rotor3 = spawn(enigma, rotor,
 		   [self(), none, i3, m1, ref, element(1, RingSettings),
 		    element(1, InitialSetting)]),

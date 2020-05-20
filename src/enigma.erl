@@ -7,21 +7,8 @@
 %% escript entry point
 %% Gets called by scripts/run
 main(Args) ->
-    io:format("~p~n", [listFor(reflector, "A")]),
-    io:format("~p~n", [listFor(reflector, "B")]),
-    io:format("~p~n", [listFor(reflector, "C")]),
-    io:format("~p~n", [listFor(reflector, "ThinB")]),
-    io:format("~p~n", [listFor(reflector, "ThinC")]),
-    io:format("~p~n", [listFor(rotor, "I")]),
-    io:format("~p~n", [listFor(rotor, "II")]),
-    io:format("~p~n", [listFor(rotor, "III")]),
-    io:format("~p~n", [listFor(rotor, "IV")]),
-    io:format("~p~n", [listFor(rotor, "V")]),
-    io:format("~p~n", [listFor(rotor, "VI")]),
-    io:format("~p~n", [listFor(rotor, "VII")]),
-    io:format("~p~n", [listFor(rotor, "VIII")]),
-    io:format("~p~n", [listFor(rotor, "Beta")]),
-    io:format("~p~n", [listFor(rotor, "Gamma")]),
+    Parent = setup("B", {"III", "I", "II"}, {12, 6, 18}, [{$A, $E}, {$F, $J}, {$P, $R}], {$D, $F, $R}),
+    broadcasts(Parent, self(), x, $A),
     % Parent = spawn(enigma, message_broker, [[], []]),
     % Rotor = spawn(enigma, rotor,
     %   [Parent, incl, incr, r, l, 0, 0]),
@@ -30,7 +17,6 @@ main(Args) ->
     % io:format("RF: ~p~n", [Rotor]),
     % broadcasts(Parent, self(), incl, 1),
     % broadcasts(Parent, self(), r, 69),
-    % broadcasts(Parent, self(), l, $A),
     % io:format("Broadcasting with args: ~p, ~p, ~p~n", [Parent, l, $E]),
     receive {close} -> erlang:halt(0) end.
 
@@ -41,18 +27,15 @@ normaliseAsciiNum(Num) -> Num rem 25 + 50.
 %%====================================================================
 
 keyboard(Parent, Keys, Lamp, Inc) ->
-    io:format("New keyboard.~n"),
-    io:format("Receiving key.~n"),
-    receives(Parent, Keys),
-    io:format("Broadcasting inc.~n"),
+    io:format("KB: ~p~n", [self()]),
+    X = receives(Parent, x),
     broadcasts(Parent, self(), Inc, 1),
-    io:format("Awaiting lamp.~n"),
+    broadcasts(Parent, self(), Keys, X),
     receives(Parent, Lamp,
-	     fun () -> keyboard(Parent, Keys, Lamp, Inc) end).
+      fun () -> keyboard(Parent, Keys, Lamp, Inc) end).
 
 reflector(Parent, In, Out, Reflector) ->
-    io:format("RE: New reflector.~n"),
-    io:format("RE: Receiving in.~n"),
+    io:format("RE: ~p~n", [self()]),
     Key = receives(Parent, In),
     io:format("RE: Broadcasting out key for ~p.~n", [Key]),
     F_refl_result = f_refl(Reflector, Key),
@@ -83,7 +66,7 @@ f_refl(Reflector, Input, _) ->
     end.
 
 plugboard(Parent, Plugboard, Input, Output) ->
-    io:format("PB: New Plugboard initialised.~n"),
+    io:format("PB: ~p~n", [self()]),
     Key = receives(Parent, Input),
     F_plug_result = f_plug(Plugboard, Key),
     io:format("PB: Received ~p on input, broadcasting "
@@ -113,7 +96,7 @@ rotorPass(Parent, Input, EncryptionFunction, Output,
     broadcasts(Parent, self(), Output, F_rotor_result).
 
 rotor(Parent, Inc_L, Inc_R, Right, Left, C, P) ->
-    io:format("Hello, this is Rotor ~p ~p ~n", [C, P]),
+    io:format("RO: ~p ~p ~p ~n", [self(), C, P]),
     IncL = receives(Parent, Inc_L),
     case C of
       26 ->
@@ -241,7 +224,7 @@ enigma(ReflectorName, RotorNames, RingSettings,
     Rotor2 = spawn(enigma, rotor,
 		   [self(), i3, i2, m2, m1, element(2, RingSettings),
 		    element(2, InitialSetting)]),
-    Rotor2 = spawn(enigma, rotor,
+    Rotor1 = spawn(enigma, rotor,
 		   [self(), i2, i1, m3, m2, element(3, RingSettings),
 		    element(3, InitialSetting)]),
     Plugboard = spawn(enigma, plugboard,

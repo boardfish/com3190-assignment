@@ -8,11 +8,13 @@
 %% Gets called by scripts/run
 main(Args) ->
     Parent = spawn(erlnigma, message_broker, [[], []]),
+    Rotor = spawn(erlnigma, rotor, [Parent, incl, incr, r, l, 0, 0]),
+    IncR = spawn(erlnigma, receives, [Parent, incr]),
     L = spawn(erlnigma, receives, [Parent, l]),
-    Plugboard = spawn(erlnigma, plugboard, [Parent, [{$A, $E}, {$E, $A}], r, l]),
-    io:format("PB: ~p~n", [Plugboard]),
-    io:format("BC: ~p, ~p, ~p~n", [Parent, r, $A]),
+    io:format("RF: ~p~n", [Rotor]),
+    broadcasts(Parent, self(), incl, 1),
     broadcasts(Parent, self(), r, $A),
+    % broadcasts(Parent, self(), l, $A),
     % io:format("Broadcasting with args: ~p, ~p, ~p~n", [Parent, l, $E]),
     receive
       {close} -> erlang:halt(0)
@@ -79,11 +81,10 @@ f_plug(Plugboard, Input) -> f_refl(Plugboard, Input).
 
 % Todo: calculate f_rotor-result
 % Todo: refactor, there's duplication here
-rotorFunction(Parent, Right, Left) ->
+rotorFunction(Parent, Right, Left, P) ->
     io:format("Calling rotorFunction.~n"),
     Key = receives(Parent, Right),
-    {F_rotor_result, _} = lists:keyfind(Key, 2,
-					rotorI()), % Unsure about this.
+    F_rotor_result = f_rotor(rotorI(), P, Key),
     io:format("RF: Received ~p on right, broadcasting "
 	      "~p on left.~n",
 	      [Key, F_rotor_result]),
@@ -91,8 +92,7 @@ rotorFunction(Parent, Right, Left) ->
     % Respond on the opposite channel this time.
     io:format("RF: Switcheroo time."),
     Key = receives(Parent, Left),
-    {F_rotor_result, _} = lists:keyfind(Key, 2,
-					rotorI()), % Unsure about this.
+    F_rotor_result = f_rotor(rotorI(), P, Key),
     io:format("RF: Received ~p on left, broadcasting "
 	      "~p on right.~n",
 	      [Key, F_rotor_result]),
@@ -109,13 +109,19 @@ rotor(Parent, Inc_L, Inc_R, Right, Left, C, P) ->
 		       1 -> 1;
 		       _ -> 0
 		     end),
-	  rotorFunction(Parent, Right, Left),
+	  rotorFunction(Parent, Right, Left, P),
 	  rotor(Parent, Inc_L, Inc_R, Right, Left, 0, P - 26);
       _ ->
 	  broadcasts(Parent, self(), Inc_R, 0),
-	  rotorFunction(Parent, Right, Left),
+	  rotorFunction(Parent, Right, Left, P),
 	  rotor(Parent, Inc_L, Inc_R, Right, Left, C + 1, P + 1)
     end.
+
+f_rotor(Rotor, P, X) ->
+  io:format("Calling frotor with P = ~p and X = ~p~n", [P, X]),
+  NewCharacterPosition = X + P,
+  io:format("Result: ~p~n", [NewCharacterPosition]),
+  element(2, lists:keyfind(NewCharacterPosition, 1, Rotor)).
 
 %%====================================================================
 %% Helper functions

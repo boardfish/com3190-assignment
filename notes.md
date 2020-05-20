@@ -68,6 +68,7 @@ $RotorFunction$ should not be recursive or provide a choice. It should receive
 from the right, then the left, to ensure that data flows both ways without an
 increment happening during the flow of data through the machine:
 
+<!-- FIXME: inverse frotor -->
 \begin{center}
 \begin{math}
 \begin{array}{lcl}

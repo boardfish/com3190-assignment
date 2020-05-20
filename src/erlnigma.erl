@@ -6,18 +6,29 @@
 
 %% escript entry point
 %% Gets called by scripts/run
+f_refl(Reflector, Input) ->
+  case string:str(lists:map(fun ({Key, _}) -> Key end,
+				    Reflector),
+			  [Input]) of
+          0 -> f_refl( Reflector, Input, true );
+          Otherwise -> Otherwise
+        end.
+
+f_refl(Reflector, Input, LastOne) ->
+  case string:str(lists:map(fun ({_, Key}) -> Key end,
+				    Reflector),
+			  [Input]) of
+          0 -> {error, "Match not found."};
+          Otherwise -> Otherwise
+        end.
+
 main(Args) ->
-    Parent = spawn(erlnigma, message_broker, [[], []]),
-    Rotor = spawn(erlnigma, rotor,
-		  [Parent, incl, incr, r, l, 0, 0]),
-    IncR = spawn(erlnigma, receives, [Parent, incr]),
-    L = spawn(erlnigma, receives, [Parent, l]),
-    io:format("RF: ~p~n", [Rotor]),
-    broadcasts(Parent, self(), incl, 1),
-    broadcasts(Parent, self(), r, $A),
-    broadcasts(Parent, self(), l, $A),
-    % io:format("Broadcasting with args: ~p, ~p, ~p~n", [Parent, l, $E]),
-    receive {close} -> erlang:halt(0) end.
+    io:format("~p~n", [normaliseAsciiNum($A)]),
+    io:format("~p~n", [reflectorA()]),
+    io:format("~p~n", [f_refl(reflectorA(), $A)]),
+    io:format("~p~n", [f_refl(reflectorA(), $Z)]).
+
+normaliseAsciiNum(Num) -> Num rem 25 + 50.
 
 %%====================================================================
 %% Enigma parts

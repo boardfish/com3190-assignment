@@ -6,22 +6,6 @@
 
 %% escript entry point
 %% Gets called by scripts/run
-f_refl(Reflector, Input) ->
-  case string:str(lists:map(fun ({Key, _}) -> Key end,
-				    Reflector),
-			  [Input]) of
-          0 -> f_refl( Reflector, Input, true );
-          Otherwise -> Otherwise
-        end.
-
-f_refl(Reflector, Input, LastOne) ->
-  case string:str(lists:map(fun ({_, Key}) -> Key end,
-				    Reflector),
-			  [Input]) of
-          0 -> {error, "Match not found."};
-          Otherwise -> Otherwise
-        end.
-
 main(Args) ->
     io:format("~p~n", [normaliseAsciiNum($A)]),
     io:format("~p~n", [reflectorA()]),
@@ -54,6 +38,24 @@ reflector(Parent, In, Out) ->
     broadcasts(Parent, self(), Out, F_refl_result),
     io:format("RE: Looping back.~n"),
     reflector(Parent, In, Out).
+
+f_refl(Reflector, Input) ->
+  case string:str(lists:map(fun ({Key, _}) -> Key end,
+				    Reflector),
+			  [Input]) of
+          0 -> f_refl( Reflector, Input, true );
+          Otherwise -> Otherwise
+        end.
+
+% If a match wasn't found on the first pass, throw in an arbitrary third
+% argument to search by the second value of the tuple.
+f_refl(Reflector, Input, LastOne) ->
+  case string:str(lists:map(fun ({_, Key}) -> Key end,
+				    Reflector),
+			  [Input]) of
+          0 -> {error, "Match not found."};
+          Otherwise -> Otherwise
+        end.
 
 plugboard(Parent, Plugboard, Input, Output) ->
     io:format("PB: New Plugboard initialised.~n"),

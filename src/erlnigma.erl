@@ -8,17 +8,16 @@
 %% Gets called by scripts/run
 main(Args) ->
     Parent = spawn(erlnigma, message_broker, [[], []]),
-     Rotor = spawn(erlnigma, rotor, [Parent, incl, incr, r, l, 0, 0]),
-     IncR = spawn(erlnigma, receives, [Parent, incr]),
-     L = spawn(erlnigma, receives, [Parent, l]),
-     io:format("RF: ~p~n", [Rotor]),
-     broadcasts(Parent, self(), incl, 1),
-     broadcasts(Parent, self(), r, 69),
-     % broadcasts(Parent, self(), l, $A),
-     % io:format("Broadcasting with args: ~p, ~p, ~p~n", [Parent, l, $E]),
-    receive
-      {close} -> erlang:halt(0)
-    end.
+    Rotor = spawn(erlnigma, rotor,
+		  [Parent, incl, incr, r, l, 0, 0]),
+    IncR = spawn(erlnigma, receives, [Parent, incr]),
+    L = spawn(erlnigma, receives, [Parent, l]),
+    io:format("RF: ~p~n", [Rotor]),
+    broadcasts(Parent, self(), incl, 1),
+    broadcasts(Parent, self(), r, 69),
+    % broadcasts(Parent, self(), l, $A),
+    % io:format("Broadcasting with args: ~p, ~p, ~p~n", [Parent, l, $E]),
+    receive {close} -> erlang:halt(0) end.
 
 normaliseAsciiNum(Num) -> Num rem 25 + 50.
 
@@ -48,22 +47,26 @@ reflector(Parent, In, Out) ->
     reflector(Parent, In, Out).
 
 f_refl(Reflector, Input) ->
-  case string:str(lists:map(fun ({Key, _}) -> Key end,
-				    Reflector),
-			  [Input]) of
-          0 -> f_refl( Reflector, Input, true );
-          Otherwise -> lists:nth(Otherwise, [Y || {_,Y} <- Reflector])
-        end.
+    case string:str(lists:map(fun ({Key, _}) -> Key end,
+			      Reflector),
+		    [Input])
+	of
+      0 -> f_refl(Reflector, Input, true);
+      Otherwise ->
+	  lists:nth(Otherwise, [Y || {_, Y} <- Reflector])
+    end.
 
 % If a match wasn't found on the first pass, throw in an arbitrary third
 % argument to search by the second value of the tuple.
 f_refl(Reflector, Input, _) ->
-  case string:str(lists:map(fun ({_, Key}) -> Key end,
-				    Reflector),
-			  [Input]) of
-          0 -> {error, "Match not found."};
-          Otherwise -> lists:nth(Otherwise, [X || {X,_} <- Reflector])
-        end.
+    case string:str(lists:map(fun ({_, Key}) -> Key end,
+			      Reflector),
+		    [Input])
+	of
+      0 -> {error, "Match not found."};
+      Otherwise ->
+	  lists:nth(Otherwise, [X || {X, _} <- Reflector])
+    end.
 
 plugboard(Parent, Plugboard, Input, Output) ->
     io:format("PB: New Plugboard initialised.~n"),
@@ -81,22 +84,19 @@ f_plug(Plugboard, Input) -> f_refl(Plugboard, Input).
 
 % Todo: calculate f_rotor-result
 % Todo: refactor, there's duplication here
-rotorFunction(Parent, Right, Left, P) ->
-    io:format("Calling rotorFunction.~n"),
-    Key = receives(Parent, Right),
-    F_rotor_result = f_rotor(rotorI(), P, Key),
-    io:format("RF: Received ~p on right, broadcasting "
-	      "~p on left.~n",
-	      [Key, F_rotor_result]),
-    broadcasts(Parent, self(), Left, F_rotor_result),
-    % Respond on the opposite channel this time.
-    io:format("RF: Switcheroo time."),
-    Key = receives(Parent, Left),
-    F_rotor_result = inverse_f_rotor(rotorI(), P, Key),
-    io:format("RF: Received ~p on left, broadcasting "
-	      "~p on right.~n",
-	      [Key, F_rotor_result]),
-    broadcasts(Parent, self(), Right, F_rotor_result).
+rotorFunction(Parent, Right, Left, Rotor, P) ->
+    rotorPass(Parent, Right, f_rotor, Left, Rotor, P),
+    rotorPass(Parent, Left, inverse_f_rotor, Right, Rotor,
+	      P).
+
+% params:
+
+rotorPass(Parent, Input, EncryptionFunction, Output,
+	  Rotor, P) ->
+    Key = receives(Parent, Input),
+    F_rotor_result = erlnigma:EncryptionFunction(Rotor, P,
+						 Key),
+    broadcasts(Parent, self(), Output, F_rotor_result).
 
 rotor(Parent, Inc_L, Inc_R, Right, Left, C, P) ->
     io:format("Hello, this is Rotor ~p ~p ~n", [C, P]),
@@ -109,23 +109,25 @@ rotor(Parent, Inc_L, Inc_R, Right, Left, C, P) ->
 		       1 -> 1;
 		       _ -> 0
 		     end),
-	  rotorFunction(Parent, Right, Left, P),
+	  rotorFunction(Parent, Right, Left, rotorI(), P),
 	  rotor(Parent, Inc_L, Inc_R, Right, Left, 0, P - 26);
       _ ->
 	  broadcasts(Parent, self(), Inc_R, 0),
-	  rotorFunction(Parent, Right, Left, P),
+	  rotorFunction(Parent, Right, Left, rotorI(), P),
 	  rotor(Parent, Inc_L, Inc_R, Right, Left, C + 1, P + 1)
     end.
 
 f_rotor(Rotor, P, X) ->
-  io:format("Calling frotor with P = ~p and X = ~p~n", [P, X]),
-  NewCharacter = X + P,
-  element(2, lists:keyfind(NewCharacter, 1, Rotor)).
+    io:format("Calling frotor with P = ~p and X = ~p~n",
+	      [P, X]),
+    NewCharacter = X + P,
+    element(2, lists:keyfind(NewCharacter, 1, Rotor)).
 
 inverse_f_rotor(Rotor, P, X) ->
-  io:format("Calling inverse frotor with P = ~p and X = ~p~n", [P, X]),
-  element(1, lists:keyfind((P + X), 2, Rotor)) - P.
-
+    io:format("Calling inverse frotor with P = ~p and "
+	      "X = ~p~n",
+	      [P, X]),
+    element(1, lists:keyfind(P + X, 2, Rotor)) - P.
 
 %%====================================================================
 %% Helper functions

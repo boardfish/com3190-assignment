@@ -7,10 +7,16 @@
 %% escript entry point
 %% Gets called by scripts/run
 main(Args) ->
-    io:format("~p~n", [normaliseAsciiNum($A)]),
-    io:format("~p~n", [reflectorA()]),
-    io:format("~p~n", [f_refl(reflectorA(), $A)]),
-    io:format("~p~n", [f_refl(reflectorA(), $Z)]).
+    Parent = spawn(erlnigma, message_broker, [[], []]),
+    L = spawn(erlnigma, receives, [Parent, l]),
+    Plugboard = spawn(erlnigma, plugboard, [Parent, [{$A, $E}, {$E, $A}], r, l]),
+    io:format("PB: ~p~n", [Plugboard]),
+    io:format("BC: ~p, ~p, ~p~n", [Parent, r, $A]),
+    broadcasts(Parent, self(), r, $A),
+    % io:format("Broadcasting with args: ~p, ~p, ~p~n", [Parent, l, $E]),
+    receive
+      {close} -> erlang:halt(0)
+    end.
 
 normaliseAsciiNum(Num) -> Num rem 25 + 50.
 
@@ -60,8 +66,7 @@ f_refl(Reflector, Input, LastOne) ->
 plugboard(Parent, Plugboard, Input, Output) ->
     io:format("PB: New Plugboard initialised.~n"),
     Key = receives(Parent, Input),
-    {F_plug_result, _} = lists:keyfind(Key, 2,
-				       Plugboard), % Unsure about this.
+    F_plug_result = f_plug(Plugboard, Key),
     io:format("PB: Received ~p on input, broadcasting "
 	      "~p on output.~n",
 	      [Key, F_plug_result]),
@@ -69,6 +74,8 @@ plugboard(Parent, Plugboard, Input, Output) ->
     % Respond on the opposite channel this time.
     io:format("PB: New plugboard hours~n"),
     plugboard(Parent, Plugboard, Output, Input).
+
+f_plug(Plugboard, Input) -> f_refl(Plugboard, Input).
 
 % Todo: calculate f_rotor-result
 % Todo: refactor, there's duplication here

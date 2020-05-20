@@ -44,7 +44,7 @@ f_refl(Reflector, Input) ->
 				    Reflector),
 			  [Input]) of
           0 -> f_refl( Reflector, Input, true );
-          Otherwise -> Otherwise
+          Otherwise -> lists:nth(Otherwise, [Y || {_,Y} <- Reflector])
         end.
 
 % If a match wasn't found on the first pass, throw in an arbitrary third
@@ -54,7 +54,7 @@ f_refl(Reflector, Input, LastOne) ->
 				    Reflector),
 			  [Input]) of
           0 -> {error, "Match not found."};
-          Otherwise -> Otherwise
+          Otherwise -> lists:nth(Otherwise, [X || {X,_} <- Reflector])
         end.
 
 plugboard(Parent, Plugboard, Input, Output) ->

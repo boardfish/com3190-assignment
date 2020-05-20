@@ -7,14 +7,29 @@
 %% escript entry point
 %% Gets called by scripts/run
 main(Args) ->
-    Parent = spawn(erlnigma, message_broker, [[], []]),
-    Rotor = spawn(erlnigma, rotor,
-		  [Parent, incl, incr, r, l, 0, 0]),
-    IncR = spawn(erlnigma, receives, [Parent, incr]),
-    L = spawn(erlnigma, receives, [Parent, l]),
-    io:format("RF: ~p~n", [Rotor]),
-    broadcasts(Parent, self(), incl, 1),
-    broadcasts(Parent, self(), r, 69),
+    io:format("~p~n", [listFor(reflector, "A")]),
+    io:format("~p~n", [listFor(reflector, "B")]),
+    io:format("~p~n", [listFor(reflector, "C")]),
+    io:format("~p~n", [listFor(reflector, "ThinB")]),
+    io:format("~p~n", [listFor(reflector, "ThinC")]),
+    io:format("~p~n", [listFor(rotor, "I")]),
+    io:format("~p~n", [listFor(rotor, "II")]),
+    io:format("~p~n", [listFor(rotor, "III")]),
+    io:format("~p~n", [listFor(rotor, "IV")]),
+    io:format("~p~n", [listFor(rotor, "V")]),
+    io:format("~p~n", [listFor(rotor, "VI")]),
+    io:format("~p~n", [listFor(rotor, "VII")]),
+    io:format("~p~n", [listFor(rotor, "VIII")]),
+    io:format("~p~n", [listFor(rotor, "Beta")]),
+    io:format("~p~n", [listFor(rotor, "Gamma")]),
+    % Parent = spawn(erlnigma, message_broker, [[], []]),
+    % Rotor = spawn(erlnigma, rotor,
+		%   [Parent, incl, incr, r, l, 0, 0]),
+    % IncR = spawn(erlnigma, receives, [Parent, incr]),
+    % L = spawn(erlnigma, receives, [Parent, l]),
+    % io:format("RF: ~p~n", [Rotor]),
+    % broadcasts(Parent, self(), incl, 1),
+    % broadcasts(Parent, self(), r, 69),
     % broadcasts(Parent, self(), l, $A),
     % io:format("Broadcasting with args: ~p, ~p, ~p~n", [Parent, l, $E]),
     receive {close} -> erlang:halt(0) end.
@@ -195,6 +210,12 @@ receives(Parent, Channel, Callback) ->
       {receives, Channel, Value} ->
 	  io:format("<- [~5w] ~p~n", [Channel, Value]), Callback()
     end.
+
+% Takes an atom and a string, and returns the return value of the corresponding
+% function in enigma.hrl.
+listFor(Type, Name) ->
+  FunctionName = list_to_atom(lists:flatten([atom_to_list(Type), Name])),
+  erlang:apply(erlnigma, FunctionName, []).
 
 %%====================================================================
 %% Exported functions

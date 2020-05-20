@@ -13,7 +13,7 @@ main(Args) ->
      L = spawn(erlnigma, receives, [Parent, l]),
      io:format("RF: ~p~n", [Rotor]),
      broadcasts(Parent, self(), incl, 1),
-     broadcasts(Parent, self(), r, $A),
+     broadcasts(Parent, self(), r, 69),
      % broadcasts(Parent, self(), l, $A),
      % io:format("Broadcasting with args: ~p, ~p, ~p~n", [Parent, l, $E]),
     receive
@@ -84,7 +84,7 @@ f_plug(Plugboard, Input) -> f_refl(Plugboard, Input).
 rotorFunction(Parent, Right, Left, P) ->
     io:format("Calling rotorFunction.~n"),
     Key = receives(Parent, Right),
-    F_rotor_result = f_rotor(rotorI(), P, Key),
+    F_rotor_result = inverse_f_rotor(rotorI(), P, Key),
     io:format("RF: Received ~p on right, broadcasting "
 	      "~p on left.~n",
 	      [Key, F_rotor_result]),
@@ -92,7 +92,7 @@ rotorFunction(Parent, Right, Left, P) ->
     % Respond on the opposite channel this time.
     io:format("RF: Switcheroo time."),
     Key = receives(Parent, Left),
-    F_rotor_result = f_rotor(rotorI(), P, Key),
+    F_rotor_result = inverse_f_rotor(rotorI(), P, Key),
     io:format("RF: Received ~p on left, broadcasting "
 	      "~p on right.~n",
 	      [Key, F_rotor_result]),
@@ -121,6 +121,10 @@ f_rotor(Rotor, P, X) ->
   io:format("Calling frotor with P = ~p and X = ~p~n", [P, X]),
   NewCharacter = X + P,
   element(2, lists:keyfind(NewCharacter, 1, Rotor)).
+
+inverse_f_rotor(Rotor, P, X) ->
+  io:format("Calling inverse frotor with P = ~p and X = ~p~n", [P, X]),
+  element(1, lists:keyfind((P + X), 2, Rotor)) - P.
 
 
 %%====================================================================

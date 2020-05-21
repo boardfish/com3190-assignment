@@ -7,7 +7,7 @@
 %% escript entry point
 %% Gets called by scripts/run
 main(Args) ->
-    Parent = setup("B", {"II", "I", "III"}, {12, 6, 18}, [{$A, $E}, {$F, $J}, {$P, $R}], {$D, $F, $R}),
+    Parent = setup("B", {"II", "I", "III"}, {26,23,4}, [{$E,$Z}, {$B,$L}, {$X,$P}, {$W,$R}, {$I,$U}, {$V,$M}, {$J,$O}], {$D, $F, $R}),
     broadcasts(Parent, self(), x, $A),
     % Parent = spawn(enigma, message_broker, [[], []]),
     % Rotor = spawn(enigma, rotor,
@@ -31,8 +31,9 @@ keyboard(Parent, Keys, Lamp, Inc) ->
     X = receives(Parent, x),
     broadcasts(Parent, self(), Inc, 1),
     broadcasts(Parent, self(), Keys, X),
-    receives(Parent, Lamp,
-      fun () -> keyboard(Parent, Keys, Lamp, Inc) end).
+    Output = receives(Parent, Lamp),
+    broadcasts(Parent, self(), x, Output),
+    keyboard(Parent, Keys, Lamp, Inc).
 
 reflector(Parent, In, Out, Reflector) ->
     io:format("RE: ~p~n", [self()]),
@@ -62,7 +63,7 @@ f_refl(Reflector, Input, _) ->
 			      Reflector),
 		    [Input])
 	of
-      0 -> {error, "Match not found."};
+      0 -> Input; % Sure about that?
       Otherwise ->
 	  lists:nth(Otherwise, [X || {X, _} <- Reflector])
     end.
@@ -90,14 +91,13 @@ rotorFunction(Parent, Right, Left, Rotor, P) ->
 
 % params:
 
-rotorPass(Parent, Input, EncryptionFunction, Output,
-	  Rotor, P) ->
+rotorPass(Parent, Input, EncryptionFunction, Output,Rotor, P) ->
     Key = receives(Parent, Input),
     F_rotor_result = enigma:EncryptionFunction(Rotor, P,
 						 Key),
     broadcasts(Parent, self(), Output, F_rotor_result).
 
-rotor(Parent, Inc_L, Inc_R, Right, Left, C, P) ->
+rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P) ->
     io:format("RO: ~p ~p ~p ~n", [self(), C, P]),
     io:format("RO: ~p receives on ~p ~n", [self(), Inc_R]),
     IncR = receives(Parent, Inc_R),
@@ -110,12 +110,12 @@ rotor(Parent, Inc_L, Inc_R, Right, Left, C, P) ->
 		       _ -> 0
 		     end),
     io:format("RO: rotorFunction is go for ~p~n", [self()]),
-	  rotorFunction(Parent, Right, Left, rotorI(), P),
-	  rotor(Parent, Inc_L, Inc_R, Right, Left, 0, P - 26);
+	  rotorFunction(Parent, Right, Left, Rotor, P),
+	  rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, 0, P - 26);
       _ ->
 	  broadcasts(Parent, self(), Inc_L, 0),
-	  rotorFunction(Parent, Right, Left, rotorI(), P),
-	  rotor(Parent, Inc_L, Inc_R, Right, Left, C + 1, P + 1)
+	  rotorFunction(Parent, Right, Left, Rotor, P),
+	  rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C + 1, P + 1)
     end.
 
 f_rotor(Rotor, P, X) ->
@@ -241,18 +241,18 @@ enigma(ReflectorName, RotorNames, RingSettings,
 		      [self(), ref, ref, listFor(reflector, ReflectorName)]),
 % rotor(Parent, Inc_L, Inc_R, Right, Left, C, P) ->
     Rotor3 = spawn(enigma, rotor,
-		   [self(), none, i3, m1, ref, element(1, RingSettings),
+		   [self(), listFor(rotor, element(1, RotorNames)), none, i3, m1, ref, element(1, RingSettings),
 		    element(1, InitialSetting)]),
     Rotor2 = spawn(enigma, rotor,
-		   [self(), i3, i2, m2, m1, element(2, RingSettings),
+		   [self(), listFor(rotor, element(2, RotorNames)), i3, i2, m2, m1, element(2, RingSettings),
 		    element(2, InitialSetting)]),
     Rotor1 = spawn(enigma, rotor,
-		   [self(), i2, i1, m3, m2, element(3, RingSettings),
+		   [self(), listFor(rotor, element(3, RotorNames)), i2, i1, m3, m2, element(3, RingSettings),
 		    element(3, InitialSetting)]),
     Plugboard = spawn(enigma, plugboard,
 		      [self(), PlugboardPairs, keys, m3]),
     Keyboard = spawn(enigma, keyboard,
-		     [self(), keys, lamp, i1]),
+		     [self(), keys, keys, i1]),
     message_broker([], []).
 
 setup(ReflectorName, RotorNames, RingSettings,

@@ -7,7 +7,7 @@
 %% escript entry point
 %% Gets called by scripts/run
 main(Args) ->
-    Parent = setup("B", {"III", "I", "II"}, {12, 6, 18}, [{$A, $E}, {$F, $J}, {$P, $R}], {$D, $F, $R}),
+    Parent = setup("B", {"II", "I", "III"}, {12, 6, 18}, [{$A, $E}, {$F, $J}, {$P, $R}], {$D, $F, $R}),
     broadcasts(Parent, self(), x, $A),
     % Parent = spawn(enigma, message_broker, [[], []]),
     % Rotor = spawn(enigma, rotor,
@@ -56,6 +56,8 @@ f_refl(Reflector, Input) ->
 % If a match wasn't found on the first pass, throw in an arbitrary third
 % argument to search by the second value of the tuple.
 f_refl(Reflector, Input, _) ->
+    io:format("Reflector got ~p!~n", [Input]),
+    io:format("Reflector is ~p!~n", [Reflector]),
     case string:str(lists:map(fun ({_, Key}) -> Key end,
 			      Reflector),
 		    [Input])
@@ -117,17 +119,20 @@ rotor(Parent, Inc_L, Inc_R, Right, Left, C, P) ->
     end.
 
 f_rotor(Rotor, P, X) ->
-    io:format("Calling frotor with P = ~p and X = ~p~n",
-	      [P, X]),
-    NewCharacter = ((X + P) rem 26) + $A,
+    NewCharacter = wrapToRange(X + P, $A, $Z),
+    io:format("Calling frotor with P = ~p and X = ~p = ~p~n",
+	      [P, X, NewCharacter]),
     io:format("PUTSBASEDDEBUG: character lookup for ~p: ~p~n", [NewCharacter, lists:keyfind(NewCharacter, 1, Rotor)]),
     element(2, lists:keyfind(NewCharacter, 1, Rotor)).
 
 inverse_f_rotor(Rotor, P, X) ->
+    NewCharacter = ((X - (P - $Z)) rem 26),
     io:format("Calling inverse frotor with P = ~p and "
-	      "X = ~p~n",
-	      [P, X]),
-    element(1, lists:keyfind(P + X, 2, Rotor)) - P.
+	      "X = ~p = ~p~n",
+	      [P, X, ($A + NewCharacter)]),
+    io:format("~p",
+	      [Rotor]),
+    ($A + (element(1, lists:keyfind($A + NewCharacter, 2, Rotor)) rem 26)).
 
 %%====================================================================
 %% Helper functions
@@ -176,7 +181,12 @@ message_broker(RegReceivers, UnsentMsgs) ->
 broadcasts(Target, Source, Channel, Value) ->
     io:format("BC: ~p, ~p, ~p~n", [Target, Channel, Value]),
     Target ! {broadcasts, Source, Channel, Value},
-    receive {ok, {broadcasts, Channel, Value}} -> ok end.
+    if Channel == none ->
+      io:format("RO: Final rotor broadcasts.~n", []),
+      ok;
+    true ->
+      receive {ok, {broadcasts, Channel, Value}} -> ok end
+    end.
 
 % receives awaits a message on the channel, then returns its value.
 receives(Parent, Channel) ->
@@ -202,6 +212,14 @@ listFor(Type, Name) ->
     FunctionName =
 	list_to_atom(lists:flatten([atom_to_list(Type), Name])),
     enigma:FunctionName().
+
+% Wraps to a range, inclusive of max.
+wrapToRange(Input, Min, Max) ->
+  if Input < Min ->
+    $A + (((Input - $A) rem 26) + 26) rem 26;
+  true ->
+    Min + ((Input - Min) rem ((Max + 1) - Min))
+  end.
 
 % generateRotors(Parent, RotorNames, RingSettings, InitialSetting) ->
 %   InputChannels = {m1, m2, m3},

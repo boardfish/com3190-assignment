@@ -7,9 +7,22 @@
 %% escript entry point
 %% Gets called by scripts/run
 main(Args) ->
-    Parent = setup("B", {"II", "I", "III"}, {26,23,4}, [{$E,$Z}, {$B,$L}, {$X,$P}, {$W,$R}, {$I,$U}, {$V,$M}, {$J,$O}], {$D, $F, $R}),
-    broadcasts(Parent, self(), x, $A),
     % Parent = spawn(enigma, message_broker, [[], []]),
+    % Out = spawn(enigma, receives, [Parent, out]),
+    % io:format("Spawning reflector.~n"),
+    % Reflector = spawn(enigma, reflector, [Parent, in, out, reflectorB()]),
+    % io:format("Reflector PID: ~p~n", [Reflector]),
+    % io:format("Broadcasting with args: ~p, ~p, ~p~n", [Reflector, in, $X]),
+    % broadcasts(Parent, Reflector, in, $X),
+    % receive {close} -> erlang:halt(0) end,
+    
+    Enigma = enigma:setup("B",{"II","I","III"},{26,23,4},[{$E,$Z}, {$B,$L}, {$X,$P}, {$W,$R}, {$I,$U}, {$V,$M}, {$J,$O}], {$A,$G,$I}),
+    Res = enigma:crypt(Enigma,"BIJECTIVE"),
+    io:format("starting reverse~n---~n"),
+    Enigma2 = enigma:setup("B",{"II","I","III"},{26,23,4},[{$E,$Z}, {$B,$L}, {$X,$P}, {$W,$R}, {$I,$U}, {$V,$M}, {$J,$O}], {$A,$G,$I}),
+    Res2 = enigma:crypt(Enigma2,"HWWSOAMDJ"),
+    io:format("Done! Check this out: THIS ~p~n", [Res]),
+    io:format("Done! Check this out: WBCG ~p~n", [Res2]),
     % Rotor = spawn(enigma, rotor,
     %   [Parent, incl, incr, r, l, 0, 0]),
     % IncR = spawn(enigma, receives, [Parent, incr]),
@@ -36,51 +49,36 @@ keyboard(Parent, Keys, Lamp, Inc) ->
     keyboard(Parent, Keys, Lamp, Inc).
 
 reflector(Parent, In, Out, Reflector) ->
-    io:format("RE: ~p~n", [self()]),
+    io:format("RE: ~p ~n", [self()]),
     Key = receives(Parent, In),
-    io:format("RE: Broadcasting out key for ~p.~n", [Key]),
-    F_refl_result = f_refl(Reflector, Key),
+    F_refl_result = f_refl(Reflector, Key, 1),
+    io:format("[RE] ~p -> ~p.~n", [Key, F_refl_result]),
     broadcasts(Parent, self(), Out, F_refl_result),
-    io:format("RE: Looping back.~n"),
     reflector(Parent, In, Out, Reflector).
 
-f_refl(Reflector, Input) ->
-    case string:str(lists:map(fun ({Key, _}) -> Key end,
-			      Reflector),
-		    [Input])
-	of
-      0 -> f_refl(Reflector, Input, true);
-      Otherwise ->
-	  lists:nth(Otherwise, [Y || {_, Y} <- Reflector])
-    end.
-
-% If a match wasn't found on the first pass, throw in an arbitrary third
-% argument to search by the second value of the tuple.
-f_refl(Reflector, Input, _) ->
-    io:format("Reflector got ~p!~n", [Input]),
-    io:format("Reflector is ~p!~n", [Reflector]),
-    case string:str(lists:map(fun ({_, Key}) -> Key end,
-			      Reflector),
-		    [Input])
-	of
-      0 -> Input; % Sure about that?
-      Otherwise ->
-	  lists:nth(Otherwise, [X || {X, _} <- Reflector])
+f_refl(Reflector, Input, ElementToCheck) ->
+    if ((ElementToCheck < 1) or (ElementToCheck > 2)) ->
+      Input;
+    true ->
+      case lists:keyfind(Input, ElementToCheck, Reflector) of
+        false ->
+          f_refl(Reflector, Input, ElementToCheck + 1);
+        Otherwise ->
+          element(3 - ElementToCheck, Otherwise)
+      end
     end.
 
 plugboard(Parent, Plugboard, Input, Output) ->
     io:format("PB: ~p~n", [self()]),
     Key = receives(Parent, Input),
     F_plug_result = f_plug(Plugboard, Key),
-    io:format("PB: Received ~p on input, broadcasting "
-	      "~p on output.~n",
+    io:format("[PB] ~p -> ~p~n",
 	      [Key, F_plug_result]),
     broadcasts(Parent, self(), Output, F_plug_result),
     % Respond on the opposite channel this time.
-    io:format("PB: New plugboard hours~n"),
     plugboard(Parent, Plugboard, Output, Input).
 
-f_plug(Plugboard, Input) -> f_refl(Plugboard, Input).
+f_plug(Plugboard, Input) -> f_refl(Plugboard, Input, 1).
 
 % Todo: calculate f_rotor-result
 % Todo: refactor, there's duplication here
@@ -98,8 +96,8 @@ rotorPass(Parent, Input, EncryptionFunction, Output,Rotor, P) ->
     broadcasts(Parent, self(), Output, F_rotor_result).
 
 rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P) ->
-    io:format("RO: ~p ~p ~p ~n", [self(), C, P]),
-    io:format("RO: ~p receives on ~p ~n", [self(), Inc_R]),
+    io:format("[RO] ~p ~p ~p ~n", [self(), C, P]),
+    io:format("[RO] ~p receives on ~p ~n", [self(), Inc_R]),
     IncR = receives(Parent, Inc_R),
     case C of
       26 ->
@@ -109,7 +107,6 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P) ->
 		       1 -> 1;
 		       _ -> 0
 		     end),
-    io:format("RO: rotorFunction is go for ~p~n", [self()]),
 	  rotorFunction(Parent, Right, Left, Rotor, P),
 	  rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, 0, P - 26);
       _ ->
@@ -120,19 +117,20 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P) ->
 
 f_rotor(Rotor, P, X) ->
     NewCharacter = wrapToRange(X + P, $A, $Z),
-    io:format("Calling frotor with P = ~p and X = ~p = ~p~n",
-	      [P, X, NewCharacter]),
-    io:format("PUTSBASEDDEBUG: character lookup for ~p: ~p~n", [NewCharacter, lists:keyfind(NewCharacter, 1, Rotor)]),
+    io:format("[FR] P = ~p, X = ~p, Result = ~p, Out = ~p~n",
+	      [P, X, NewCharacter, element(2, lists:keyfind(NewCharacter, 1, Rotor))]),
     element(2, lists:keyfind(NewCharacter, 1, Rotor)).
 
 inverse_f_rotor(Rotor, P, X) ->
-    NewCharacter = ((X - (P - $Z)) rem 26),
-    io:format("Calling inverse frotor with P = ~p and "
-	      "X = ~p = ~p~n",
-	      [P, X, ($A + NewCharacter)]),
-    io:format("~p",
-	      [Rotor]),
-    ($A + (element(1, lists:keyfind($A + NewCharacter, 2, Rotor)) rem 26)).
+    Character = element(1, lists:keyfind(X, 2, Rotor)),
+    NewCharacter = wrapToRange(Character - P, $A, $Z),
+    io:format("[FR]#P = ~p, X = ~p, Result = ~p, Out = ~p~n",
+	      [P, X, Character, NewCharacter]),
+    NewCharacter.
+    % NewCharacter = wrapToRange(P - X, $A, $Z),
+    % io:format("[FR]#P = ~p, X = ~p, Result = ~p, Out = ~p~n",
+	  %     [P, X, $A + NewCharacter, ($A + (element(1, lists:keyfind($A + NewCharacter, 2, Rotor)) rem 26))]),
+    % ($A + (element(1, lists:keyfind($A + NewCharacter, 2, Rotor)) rem 26)).
 
 %%====================================================================
 %% Helper functions
@@ -145,11 +143,8 @@ inverse_f_rotor(Rotor, P, X) ->
 % move from the pi-calculus representation to Erlang code and also means that
 % processes don't depend on PIDs (that might not yet exist) on startup.
 message_broker(RegReceivers, UnsentMsgs) ->
-    io:format("MB: ~p ~p ~p~n",
-	      [self(), RegReceivers, UnsentMsgs]),
     receive
       {broadcasts, Source, Channel, Value} ->
-	  io:format("~p -> ~p: ~p~n", [Source, Channel, Value]),
 	  case lists:keyfind(Channel, 1, RegReceivers) of
 	    false ->
 		message_broker(RegReceivers,
@@ -162,7 +157,7 @@ message_broker(RegReceivers, UnsentMsgs) ->
 			       UnsentMsgs)
 	  end;
       {receives, Channel, Target} ->
-	  io:format("~p <- ~p~n", [Target, Channel]),
+	  % io:format("~p <- ~p~n", [Target, Channel]),
 	  case lists:keyfind(Channel, 1, UnsentMsgs) of
 	    false ->
 		message_broker([{Channel, Target} | RegReceivers],
@@ -179,10 +174,9 @@ message_broker(RegReceivers, UnsentMsgs) ->
 % called for the broadcast, for debug reasons. Channel is an atom, and Value is
 % the message content.
 broadcasts(Target, Source, Channel, Value) ->
-    io:format("BC: ~p, ~p, ~p~n", [Target, Channel, Value]),
+    io:format("[-> ~4w] ~p~n", [Channel, Value]),
     Target ! {broadcasts, Source, Channel, Value},
     if Channel == none ->
-      io:format("RO: Final rotor broadcasts.~n", []),
       ok;
     true ->
       receive {ok, {broadcasts, Channel, Value}} -> ok end
@@ -193,7 +187,6 @@ receives(Parent, Channel) ->
     Parent ! {receives, Channel, self()},
     receive
       {receives, Channel, Value} ->
-	  io:format("<- [~5w ~p] ~p~n", [Channel, Parent, Value]),
 	  Value
     end.
 
@@ -203,7 +196,7 @@ receives(Parent, Channel, Callback) ->
     Parent ! {receives, Channel, self()},
     receive
       {receives, Channel, Value} ->
-	  io:format("<- [~5w] ~p~n", [Channel, Value]), Callback()
+	  Callback()
     end.
 
 % Takes an atom and a string, and returns the return value of the corresponding
@@ -235,20 +228,21 @@ wrapToRange(Input, Min, Max) ->
 %% Exported functions
 %%====================================================================
 
-enigma(ReflectorName, RotorNames, RingSettings,
-      PlugboardPairs, InitialSetting) ->
+enigma(ReflectorName, RotorNames, InitialSetting,
+      PlugboardPairs, RingSettings) ->
     Reflector = spawn(enigma, reflector,
 		      [self(), ref, ref, listFor(reflector, ReflectorName)]),
-% rotor(Parent, Inc_L, Inc_R, Right, Left, C, P) ->
+% rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P) ->
     Rotor3 = spawn(enigma, rotor,
-		   [self(), listFor(rotor, element(1, RotorNames)), none, i3, m1, ref, element(1, RingSettings),
-		    element(1, InitialSetting)]),
+		   [self(), listFor(rotor, element(3, RotorNames)), none, i3, m1, ref, element(3, RingSettings),
+		    element(3, InitialSetting)]),
+    io:format("Rotor3: ~p~n", [Rotor3]),
     Rotor2 = spawn(enigma, rotor,
 		   [self(), listFor(rotor, element(2, RotorNames)), i3, i2, m2, m1, element(2, RingSettings),
 		    element(2, InitialSetting)]),
     Rotor1 = spawn(enigma, rotor,
-		   [self(), listFor(rotor, element(3, RotorNames)), i2, i1, m3, m2, element(3, RingSettings),
-		    element(3, InitialSetting)]),
+		   [self(), listFor(rotor, element(1, RotorNames)), i2, i1, m3, m2, element(1, RingSettings),
+		    element(1, InitialSetting)]),
     Plugboard = spawn(enigma, plugboard,
 		      [self(), PlugboardPairs, keys, m3]),
     Keyboard = spawn(enigma, keyboard,
@@ -260,6 +254,17 @@ setup(ReflectorName, RotorNames, RingSettings,
     spawn(enigma, enigma, [ReflectorName, RotorNames, RingSettings,
       PlugboardPairs, InitialSetting]).
 
-crypt(Enigma_PID, TextString) -> ok.
+crypt(Enigma_PID, TextString) ->
+    % Convert everything to uppercase
+    encryptWithState(Enigma_PID, TextString, []).
+
+encryptWithState(Enigma_PID, TextString, EncryptedString) ->
+    [Head|Tail] = [X || X <- re:replace(string:uppercase(TextString), "\\s+", "", [global,{return,list}]), (X < $Z) and (X > $A)],
+    broadcasts(Enigma_PID, self(), x, Head),
+    EncryptedChar = receives(Enigma_PID, x),
+    case Tail of
+      [] -> lists:reverse([EncryptedChar|EncryptedString]);
+      Otherwise -> encryptWithState(Enigma_PID, Tail, [EncryptedChar|EncryptedString])
+    end.
 
 kill(Enigma_PID) -> ok.

@@ -82,7 +82,7 @@ plugboard(Parent, Plugboard, Input, Output, Offset) ->
     F_plug_result = f_plug(Plugboard, Key),
     io:format("[PB] ~p -> ~p~n",
 	      [Key, F_plug_result]),
-    broadcasts(Parent, self(), Output, F_plug_result + Offset),
+    broadcasts(Parent, self(), Output, wrapToRange(F_plug_result + Offset, $A, $Z)),
     % Respond on the opposite channel this time.
     plugboard(Parent, Plugboard, Output, Input, (-1*Offset)).
 
@@ -91,32 +91,35 @@ f_plug(Plugboard, Input) -> f_refl(Plugboard, Input, 1).
 % Todo: calculate f_rotor-result
 % Todo: refactor, there's duplication here
 rotorFunction(Parent, Right, Left, Rotor, P, Offset) ->
-    rotorPass(Parent, Right, f_rotor, Left, Rotor, P, Offset),
+    OffsetValue = case Offset of
+      true -> (-1 * P);
+      _ -> 0
+    end,
+    rotorPass(Parent, Right, f_rotor, Left, Rotor, P, 0, OffsetValue),
     rotorPass(Parent, Left, inverse_f_rotor, Right, Rotor,
-	      P, (Offset * -1)).
+	      P, (OffsetValue * -1), 0).
 
 % params:
 
-rotorPass(Parent, Input, EncryptionFunction, Output, Rotor, P, Offset) ->
+rotorPass(Parent, Input, EncryptionFunction, Output, Rotor, P, InputOffset, OutputOffset) ->
     Key = receives(Parent, Input),
     F_rotor_result = enigma:EncryptionFunction(Rotor, P,
-						 Key) + Offset,
+						 wrapToRange(Key + InputOffset, $A, $Z)) + OutputOffset,
     io:format("[FR] Offset = ~p -> Out = ~p",
-	      [Offset, [F_rotor_result]]),
+	      [OutputOffset, [F_rotor_result]]),
     broadcasts(Parent, self(), Output, F_rotor_result).
 
 rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset) ->
     io:format("[RO] ~p ~p ~p ~n", [self(), C, P]),
     io:format("[RO] ~p receives on ~p ~n", [self(), Inc_R]),
-    IncR = receives(Parent, Inc_R),
+    IncR = case receives(Parent, Inc_R) of
+		       1 -> 1;
+		       _ -> 0
+		     end,
     case C of
       26 ->
 	  % send inc to incl
-	  broadcasts(Parent, self(), Inc_L,
-		     case IncR of
-		       1 -> 1;
-		       _ -> 0
-		     end),
+	  broadcasts(Parent, self(), Inc_L, IncR),
 	  rotorFunction(Parent, Right, Left, Rotor, P, Offset),
 	  rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, 0, P - 26, Offset);
       _ ->
@@ -245,14 +248,14 @@ enigma(ReflectorName, RotorNames, InitialSetting,
 % rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P) ->
     Rotor3 = spawn(enigma, rotor,
 		   [self(), listFor(rotor, element(3, RotorNames)), none, i3, m1, ref, element(3, RingSettings),
-		    element(3, InitialSetting), 0]),
+		    element(3, InitialSetting), false]),
     io:format("Rotor3: ~p~n", [Rotor3]),
     Rotor2 = spawn(enigma, rotor,
 		   [self(), listFor(rotor, element(2, RotorNames)), i3, i2, m2, m1, element(2, RingSettings),
-		    element(2, InitialSetting), 0]),
+		    element(2, InitialSetting), false]),
     Rotor1 = spawn(enigma, rotor,
 		   [self(), listFor(rotor, element(1, RotorNames)), i2, i1, m3, m2, element(1, RingSettings),
-		    element(1, InitialSetting), -1]),
+		    element(1, InitialSetting), true]),
     Plugboard = spawn(enigma, plugboard,
 		      [self(), PlugboardPairs, keys, m3, 1]),
     Keyboard = spawn(enigma, keyboard,
@@ -271,7 +274,7 @@ crypt(Enigma_PID, TextString) ->
 encryptWithState(Enigma_PID, TextString, EncryptedString) ->
     io:format("Take a look at that ~p!~n", [TextString]),
     case TextString of
-      [] -> lists:reverse([EncryptedString]);
+      [] -> lists:reverse(EncryptedString);
       [Head|Tail] ->
         broadcasts(Enigma_PID, self(), x, Head),
         EncryptedChar = receives(Enigma_PID, x),

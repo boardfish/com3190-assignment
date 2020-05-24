@@ -91,17 +91,17 @@ f_plug(Plugboard, Input) -> f_refl(Plugboard, Input, 1).
 % Todo: calculate f_rotor-result
 % Todo: refactor, there's duplication here
 rotorFunction(Parent, Right, Left, Rotor, P, Offset) ->
-    OffsetValue = Offset * P * -1,
+    OffsetValue = Offset,
     rotorPass(Parent, Right, f_rotor, Left, Rotor, P, 0, OffsetValue),
     rotorPass(Parent, Left, inverse_f_rotor, Right, Rotor,
-	      P, OffsetValue * -1, 0).
+	      P, 0, OffsetValue).
 
 % params:
 
 rotorPass(Parent, Input, EncryptionFunction, Output, Rotor, P, InputOffset, OutputOffset) ->
     Key = receives(Parent, Input),
-    F_rotor_result = enigma:EncryptionFunction(Rotor, P,
-						 wrapToRange(Key + InputOffset, $A, $Z)) + OutputOffset,
+    F_rotor_result = enigma:EncryptionFunction(Rotor, P * OutputOffset,
+						 Key),
     io:format("[FR] Offset = ~p -> Out = ~p",
 	      [OutputOffset, [F_rotor_result]]),
     broadcasts(Parent, self(), Output, F_rotor_result).
@@ -126,14 +126,14 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset) ->
     end.
 
 f_rotor(Rotor, P, X) ->
-    NewCharacter = wrapToRange(X + (P - 1), $A, $Z),
+    NewCharacter = wrapToRange(X + (P), $A, $Z),
     io:format("[FR] P = ~p, X = ~p, Result = ~p, Out = ~p~n",
 	      [P, [X], [NewCharacter], [element(2, lists:keyfind(NewCharacter, 1, Rotor))]]),
     element(2, lists:keyfind(NewCharacter, 1, Rotor)).
 
 inverse_f_rotor(Rotor, P, X) ->
     Character = element(1, lists:keyfind(X, 2, Rotor)),
-    NewCharacter = wrapToRange(Character - (P - 1), $A, $Z),
+    NewCharacter = wrapToRange(Character - (P), $A, $Z),
     io:format("[FR]#P = ~p, X = ~p, Result = ~p, Out = ~p~n",
 	      [P, [X], [Character], [NewCharacter]]),
     NewCharacter.
@@ -249,12 +249,12 @@ enigma(ReflectorName, RotorNames, InitialSetting,
     io:format("Rotor3: ~p~n", [Rotor3]),
     Rotor2 = spawn(enigma, rotor,
 		   [self(), listFor(rotor, element(2, RotorNames)), i3, i2, m2, m1, element(2, RingSettings),
-		    element(2, InitialSetting), 0]),
+		    element(2, InitialSetting), -1]),
     Rotor1 = spawn(enigma, rotor,
 		   [self(), listFor(rotor, element(1, RotorNames)), i2, i1, m3, m2, element(1, RingSettings),
 		    element(1, InitialSetting), 1]),
     Plugboard = spawn(enigma, plugboard,
-		      [self(), PlugboardPairs, keys, m3, 1]),
+		      [self(), PlugboardPairs, keys, m3, 0]),
     Keyboard = spawn(enigma, keyboard,
 		     [self(), keys, keys, i1]),
     message_broker([], []).

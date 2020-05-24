@@ -18,7 +18,7 @@ f_rotor_inverse_test() ->
 
 %% A simple test from
 %% http://gcc.eisbehr.de/manual/en/enigma.html
-simple() ->
+simple_test() ->
     Enigma = enigma:setup("B",{"II","I","III"},{26,23,4},[{$E,$Z}, {$B,$L}, {$X,$P}, {$W,$R}, {$I,$U}, {$V,$M}, {$J,$O}], {$A,$G,$I}),
     Res = enigma:crypt(Enigma,"WBCG QLUWJ FCKLW MQIXW PDYVI EIRLY SDQRI ANEQQ QIZRW MIKFW NKZNG SVKZV VWXNB FNQDO"),
     ?assertEqual("THIS ISANE XAMPL EMESS AGEXB ROUGH TTOYO UBYGC CXQEE RSAND HAVEF UNWIT HTHEE NIGMA",Res).

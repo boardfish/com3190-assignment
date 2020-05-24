@@ -91,10 +91,10 @@ f_plug(Plugboard, Input) -> f_refl(Plugboard, Input, 1).
 % Todo: calculate f_rotor-result
 % Todo: refactor, there's duplication here
 rotorFunction(Parent, Right, Left, Rotor, P, Offset) ->
-    OffsetValue = Offset * P,
-    rotorPass(Parent, Right, f_rotor, Left, Rotor, P, OffsetValue, 0),
+    OffsetValue = Offset * P * -1,
+    rotorPass(Parent, Right, f_rotor, Left, Rotor, P, 0, OffsetValue),
     rotorPass(Parent, Left, inverse_f_rotor, Right, Rotor,
-	      P, 0, OffsetValue * -1).
+	      P, OffsetValue * -1, 0).
 
 % params:
 
@@ -249,12 +249,12 @@ enigma(ReflectorName, RotorNames, InitialSetting,
     io:format("Rotor3: ~p~n", [Rotor3]),
     Rotor2 = spawn(enigma, rotor,
 		   [self(), listFor(rotor, element(2, RotorNames)), i3, i2, m2, m1, element(2, RingSettings),
-		    element(2, InitialSetting), -1]),
+		    element(2, InitialSetting), 0]),
     Rotor1 = spawn(enigma, rotor,
 		   [self(), listFor(rotor, element(1, RotorNames)), i2, i1, m3, m2, element(1, RingSettings),
 		    element(1, InitialSetting), 1]),
     Plugboard = spawn(enigma, plugboard,
-		      [self(), PlugboardPairs, keys, m3, 0]),
+		      [self(), PlugboardPairs, keys, m3, 1]),
     Keyboard = spawn(enigma, keyboard,
 		     [self(), keys, keys, i1]),
     message_broker([], []).

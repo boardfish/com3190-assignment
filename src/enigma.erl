@@ -106,23 +106,36 @@ rotorPass(Parent, Input, EncryptionFunction, Output, Rotor, P, InputOffset, Outp
 	      [OutputOffset, [F_rotor_result]]),
     broadcasts(Parent, self(), Output, F_rotor_result).
 
-rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset) ->
+rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset, Notch, FirstRotor) ->
     io:format("[RO] ~p ~p ~p ~n", [self(), C, P]),
     io:format("[RO] ~p receives on ~p ~n", [self(), Inc_R]),
-    IncR = case receives(Parent, Inc_R) of
-		       1 -> 1;
-		       _ -> 0
-		     end,
+    IncR = receives(Parent, Inc_R),
     case C of
       $Z ->
-	  % send inc to incl
-	  broadcasts(Parent, self(), Inc_L, IncR),
-	  rotorFunction(Parent, Right, Left, Rotor, P, Offset),
-	  rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, 0, P - 25, Offset);
+        % send inc to incl
+        broadcasts(Parent, self(), Inc_L, IncR),
+        io:format("rotorFunction(Parent, Right, Left, Rotor, (~p - ~p) + ~p + ~p, Offset),~n", [C, $A, P, IncR]),
+        rotorFunction(Parent, Right, Left, Rotor, P + IncR, Offset),
+        case IncR of
+          1 -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, 0, P - 25, Offset, Notch, FirstRotor);
+          _ -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset, Notch, FirstRotor) end;
       _ ->
-	  broadcasts(Parent, self(), Inc_L, 0),
-	  rotorFunction(Parent, Right, Left, Rotor, P, Offset),
-	  rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C + 1, P + 1, Offset)
+        %
+        case P of 
+          Notch -> io:format(">> Sending +1 to next rotor...~n");
+          _ -> io:format(">> Nothing happened.~n")
+        end,
+        %
+        broadcasts(Parent, self(), Inc_L, case P of 
+            Notch -> 1 + FirstRotor;
+            _ -> FirstRotor
+          end
+        ),
+        io:format("rotorFunction(Parent, Right, Left, Rotor, (~p - ~p) + ~p + ~p, Offset),~n", [C, $A, P, IncR]),
+        rotorFunction(Parent, Right, Left, Rotor, P + IncR, Offset),
+        case IncR of
+          1 -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C + 1, P + 1, Offset, Notch, FirstRotor);
+          _ -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset, Notch, FirstRotor) end
     end.
 
 f_rotor(Rotor, P, X) ->
@@ -245,14 +258,14 @@ enigma(ReflectorName, RotorNames, InitialSetting,
 % rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P) ->
     Rotor3 = spawn(enigma, rotor,
 		   [self(), listFor(rotor, element(1, RotorNames)), none, i3, m1, ref, element(1, RingSettings),
-		    element(1, InitialSetting), 0]),
+		    element(1, InitialSetting), 0, $Q-$A, 0]),
     io:format("Rotor3: ~p~n", [Rotor3]),
     Rotor2 = spawn(enigma, rotor,
 		   [self(), listFor(rotor, element(2, RotorNames)), i3, i2, m2, m1, element(2, RingSettings),
-		    element(2, InitialSetting), -1]),
+		    element(2, InitialSetting) - 1, -1, $E-$A, 0]),
     Rotor1 = spawn(enigma, rotor,
 		   [self(), listFor(rotor, element(3, RotorNames)), i2, i1, m3, m2, element(3, RingSettings),
-		    element(3, InitialSetting), 1]),
+		    element(3, InitialSetting) - 1, 1, $V-$A, 1]),
     Plugboard = spawn(enigma, plugboard,
 		      [self(), PlugboardPairs, keys, m3, 0]),
     Keyboard = spawn(enigma, keyboard,
@@ -269,7 +282,7 @@ crypt(Enigma_PID, TextString) ->
     encryptWithState(Enigma_PID, string:uppercase(TextString), []).
 
 encryptWithState(Enigma_PID, TextString, EncryptedString) ->
-    io:format("Take a look at that ~p!~n", [TextString]),
+    io:format("---~nEncrypting ~p~n---~n", [TextString]),
     case TextString of
       [] -> lists:reverse(EncryptedString);
       [Head|Tail] ->

@@ -24,13 +24,13 @@ main(Args) ->
     % io:format("Done! Check this out: ~p~n", [Res]),
     % io:format("Done! Check this out: ~p~n", [Res2]).
     
-    Enigma = enigma:setup("B",{"IV","II","I"},{1,1,1},[], {$A,$A,$A}),
+    Enigma = enigma:setup("B",{"I","II","III"},{1,1,1},[], {$A,$A,$A}),
     Res = enigma:crypt(Enigma,Args),
     io:format("starting reverse~n---~n"),
-    Enigma2 = enigma:setup("B",{"IV","II","I"},{1,1,1},[], {$A,$A,$A}),
-    Res2 = enigma:crypt(Enigma2,Res),
-    io:format("Done! Check this out: ~p~n", [Res]),
-    io:format("Done! Check this out: ~p~n", [Res2]).
+    % Enigma2 = enigma:setup("B",{"I","II","III"},{1,1,1},[], {$A,$A,$A}),
+    % Res2 = enigma:crypt(Enigma2,Res),
+    io:format("Done! Check this out: ~p~n", [Res]).
+    % io:format("Done! Check this out: ~p~n", [Res2]).
 
     % Rotor = spawn(enigma, rotor,
     %   [Parent, incl, incr, r, l, 0, 0]),
@@ -114,11 +114,11 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset) ->
 		       _ -> 0
 		     end,
     case C of
-      26 ->
+      $Z ->
 	  % send inc to incl
 	  broadcasts(Parent, self(), Inc_L, IncR),
 	  rotorFunction(Parent, Right, Left, Rotor, P, Offset),
-	  rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, 0, P - 26, Offset);
+	  rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, 0, P - 25, Offset);
       _ ->
 	  broadcasts(Parent, self(), Inc_L, 0),
 	  rotorFunction(Parent, Right, Left, Rotor, P, Offset),

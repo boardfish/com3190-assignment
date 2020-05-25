@@ -57,7 +57,7 @@ keyboard(Parent, Keys, Lamp, Inc) ->
     keyboard(Parent, Keys, Lamp, Inc).
 
 reflector(Parent, In, Out, Reflector) ->
-    io:format("RE: ~p ~n", [self()]),
+    % io:format("RE: ~p ~n", [self()]),
     Key = receives(Parent, In),
     F_refl_result = f_refl(Reflector, Key, 1),
     io:format("[RE] ~p -> ~p.~n", [Key, F_refl_result]),
@@ -77,7 +77,7 @@ f_refl(Reflector, Input, ElementToCheck) ->
     end.
 
 plugboard(Parent, Plugboard, Input, Output, Offset) ->
-    io:format("PB: ~p~n", [self()]),
+    % io:format("PB: ~p~n", [self()]),
     Key = receives(Parent, Input),
     F_plug_result = f_plug(Plugboard, Key),
     io:format("[PB] ~p -> ~p~n",
@@ -102,12 +102,12 @@ rotorPass(Parent, Input, EncryptionFunction, Output, Rotor, P, InputOffset, Outp
     Key = receives(Parent, Input),
     F_rotor_result = enigma:EncryptionFunction(Rotor, P * OutputOffset,
 						 Key),
-    io:format("[FR] Offset = ~p -> Out = ~p",
-	      [OutputOffset, [F_rotor_result]]),
+    % io:format("[FR] Offset = ~p -> Out = ~p",
+	  %     [OutputOffset, [F_rotor_result]]),
     broadcasts(Parent, self(), Output, F_rotor_result).
 
 rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset, Notch, FirstRotor) ->
-    io:format("[RO] ~p ~p ~p ~n", [self(), C, P]),
+    io:format("[RO] ~p C = ~p, P = ~p ~n", [self(), C, P]),
     io:format("[RO] ~p receives on ~p ~n", [self(), Inc_R]),
     IncR = receives(Parent, Inc_R),
     case C of
@@ -122,12 +122,12 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset, Notch, FirstRotor)
       _ ->
         %
         case C of 
-          Notch -> io:format(">> N) Sending ~p to next rotor...~n", [IncR - 1]);
-          _ -> io:format(">> Sending ~p to next rotor...~n", [max(FirstRotor, 0)])
+          Notch -> io:format(">> [~p/~p] N) Sending ~p to next rotor...~n", [C, Notch, abs(IncR - 1)]);
+          _ -> io:format(">> [~p/~p] Sending ~p to next rotor...~n", [C, Notch, max(FirstRotor, 0)])
         end,
         %
         broadcasts(Parent, self(), Inc_L, case C of 
-            Notch -> IncR - 1; %+ FirstRotor;
+            Notch -> abs(IncR - 1); %+ FirstRotor;
             _ -> max(FirstRotor, 0)
           end
         ),
@@ -197,7 +197,7 @@ message_broker(RegReceivers, UnsentMsgs) ->
 % called for the broadcast, for debug reasons. Channel is an atom, and Value is
 % the message content.
 broadcasts(Target, Source, Channel, Value) ->
-    io:format("[-> ~4w] ~p~n", [Channel, Value]),
+    io:format("[-> ~4w] ~p ~p~n", [Channel, Source, Value]),
     Target ! {broadcasts, Source, Channel, Value},
     if Channel == none ->
       ok;
@@ -258,7 +258,7 @@ enigma(ReflectorName, RotorNames, InitialSetting,
 % rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P) ->
     Rotor3 = spawn(enigma, rotor,
 		   [self(), listFor(rotor, element(1, RotorNames)), none, i3, m1, ref, element(1, RingSettings),
-		    element(1, InitialSetting) - 1, 1, 91, 0]),
+		    element(1, InitialSetting) - 1, -1, 91, 0]),
     io:format("Rotor3: ~p~n", [Rotor3]),
     Rotor2 = spawn(enigma, rotor,
 		   [self(), listFor(rotor, element(2, RotorNames)), i3, i2, m2, m1, element(2, RingSettings),

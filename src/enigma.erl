@@ -191,7 +191,7 @@ broadcasts(Target, Channel, Value) ->
     case Channel of
       none -> ok;
       _ ->
-	   receive {ok, {broadcasts, Channel, Value}} -> ok end
+	  receive {ok, {broadcasts, Channel, Value}} -> ok end
     end.
 
 %% receives alerts the message broker (Parent) that a channel is ready to
@@ -257,30 +257,30 @@ configureRotor(RotorName, Ringstellung) ->
 enigma(ReflectorName, RotorNames, InitialSetting,
        PlugboardPairs, RingSettings) ->
     spawn_link(enigma, reflector,
-	  [self(), ref, ref, listFor(reflector, ReflectorName)]),
+	       [self(), ref, ref, listFor(reflector, ReflectorName)]),
     spawn_link(enigma, rotor,
-	  [self(),
-	   configureRotor(element(1, RotorNames),
-			  element(1, InitialSetting)),
-	   none, i3, m1, ref, 0, element(1, RingSettings) - $A,
-	   notchFor(element(1, RotorNames)),
-	   element(1, RingSettings) - $A]),
+	       [self(),
+		configureRotor(element(1, RotorNames),
+			       element(1, InitialSetting)),
+		none, i3, m1, ref, 0, element(1, RingSettings) - $A,
+		notchFor(element(1, RotorNames)),
+		element(1, RingSettings) - $A]),
     spawn_link(enigma, rotor,
-	  [self(),
-	   configureRotor(element(2, RotorNames),
-			  element(2, InitialSetting)),
-	   i3, i2, m2, m1, 0, element(2, RingSettings) - $A,
-	   notchFor(element(2, RotorNames)),
-	   element(2, RingSettings) - $A]),
+	       [self(),
+		configureRotor(element(2, RotorNames),
+			       element(2, InitialSetting)),
+		i3, i2, m2, m1, 0, element(2, RingSettings) - $A,
+		notchFor(element(2, RotorNames)),
+		element(2, RingSettings) - $A]),
     spawn_link(enigma, rotor,
-	  [self(),
-	   configureRotor(element(3, RotorNames),
-			  element(3, InitialSetting)),
-	   i2, i1, m3, m2, 0, element(3, RingSettings) - $A,
-	   notchFor(element(3, RotorNames)),
-	   element(3, RingSettings) - $A]),
+	       [self(),
+		configureRotor(element(3, RotorNames),
+			       element(3, InitialSetting)),
+		i2, i1, m3, m2, 0, element(3, RingSettings) - $A,
+		notchFor(element(3, RotorNames)),
+		element(3, RingSettings) - $A]),
     spawn_link(enigma, plugboard,
-	  [self(), PlugboardPairs, keys, m3]),
+	       [self(), PlugboardPairs, keys, m3]),
     spawn_link(enigma, keyboard, [self(), keys, keys, i1]),
     message_broker([], []).
 
@@ -320,4 +320,5 @@ encryptWithState(Enigma_PID, TextString,
 %% couldn't find a way to repeatably test this in time for the deadline.
 %% It might have something to do with the message broker possibly having a
 %% different PID to the Enigma itself
-kill(Enigma_PID) -> broadcasts(Enigma_PID, commands, kill).
+kill(Enigma_PID) ->
+    broadcasts(Enigma_PID, commands, kill).

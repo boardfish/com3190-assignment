@@ -99,7 +99,7 @@ rotorFunction(Parent, Right, Left, Rotor, P, RotationDirection) ->
 
 rotorPass(Parent, Input, EncryptionFunction, Output, Rotor, P, RotationDirection) ->
     Key = wrapChar(receives(Parent, Input)),
-    F_rotor_result = enigma:EncryptionFunction(Rotor, (P * RotationDirection), Key),
+    F_rotor_result = enigma:EncryptionFunction(Rotor, (P * RotationDirection), Key) - (P * RotationDirection),
     % io:format("[FR] Offset = ~p -> Out = ~p",
 	  %     [OutputOffset, [F_rotor_result]]),
     broadcasts(Parent, self(), Output, F_rotor_result).
@@ -126,7 +126,7 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset, Notch, FirstRotor)
         %   _ -> io:format(">> [~p/~p] Sending ~p to next rotor...~n", [C, Notch, max(FirstRotor, 0)])
         % end,
         %
-        broadcasts(Parent, self(), Inc_L, max(FirstRotor, abs(IncR - 1))),
+        broadcasts(Parent, self(), Inc_L, 0),
         io:format("[~p/~p], P = ~p + ~p~n", [C, [P + $A], P, IncR]),
         rotorFunction(Parent, Right, Left, Rotor, P + IncR, Offset),
         case IncR of
@@ -141,8 +141,12 @@ f_rotor(Rotor, P, X) ->
     element(2, lists:keyfind(NewCharacter, 1, Rotor)).
 
 inverse_f_rotor(Rotor, P, X) ->
-    Character = element(1, lists:keyfind(X, 2, Rotor)),
-    NewCharacter = wrapChar(Character - P),
+    Character = element(1, lists:keyfind(wrapChar(X + P), 2, Rotor)),
+    NewCharacter = Character,
+    io:format("~p~n",
+	      [lists:keyfind(X + P, 2, Rotor)]),
+    io:format("[FR]#P = ~p, X = ~p, Result = ~p, Out = ~p~n",
+	      [P, X, Character, NewCharacter]),
     io:format("[FR]#P = ~p, X = ~p, Result = ~p, Out = ~p~n",
 	      [P, [X], [Character], [NewCharacter]]),
     NewCharacter.

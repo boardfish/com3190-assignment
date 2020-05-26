@@ -9,7 +9,7 @@
 %% rebar3 escriptize && ./_build/default/bin/enigma "Text you want to encrypt \
 %% here"
 %% ---
-%% Development note: I used this often, passing Res to a second machine's crypt 
+%% Development note: I used this often, passing Res to a second machine's crypt
 %% function to make sure that my implementation was bijective all the way
 %% through.
 main(Args) ->
@@ -83,30 +83,27 @@ plugboard(Parent, Plugboard, Input, Output, Offset) ->
 	      -1 * Offset).
 
 %% f_plug works in the same way as f_refl, as both map characters to just one
-%% other bijectively. Thus, it's safe to inherit that behaviour. 
+%% other bijectively. Thus, it's safe to inherit that behaviour.
 f_plug(Plugboard, Input) -> f_refl(Plugboard, Input, 1).
 
 %% RotorFunction is implemented similarly to Plugboard - rather than accepting
 %% on both channels, it accepts on the right channel first, then on the left.
 %% In this instance, it's necessary to specify the function that's being
 %% executed, as f_rotor isn't bijective and needs a specified inverse.
-rotorFunction(Parent, Right, Left, Rotor, P,
-	      RotationDirection) ->
-    OffsetValue = RotationDirection,
-    rotorPass(Parent, Right, f_rotor, Left, Rotor, P,
-	      OffsetValue),
+rotorFunction(Parent, Right, Left, Rotor, P) ->
+    rotorPass(Parent, Right, f_rotor, Left, Rotor, P),
     rotorPass(Parent, Left, inverse_f_rotor, Right, Rotor,
-	      P, OffsetValue).
+	      P).
 
 %% rotorPass represents one pass of data through a rotor, receiving on an input
 %% and transforming it before outputting it.
 %% The result of the rotor function is offset by P anticlockwise.
 rotorPass(Parent, Input, EncryptionFunction, Output,
-	  Rotor, P, RotationDirection) ->
+	  Rotor, P) ->
     Key = wrapChar(receives(Parent, Input)),
-    F_rotor_result = enigma:EncryptionFunction(Rotor,
-					       P * RotationDirection, Key)
-		       - P * RotationDirection,
+    F_rotor_result = enigma:EncryptionFunction(Rotor, P,
+					       Key)
+		       - P,
     % io:format("[FR] Offset = ~p -> Out = ~p",
     %     [OutputOffset, [F_rotor_result]]),
     broadcasts(Parent, self(), Output,
@@ -118,7 +115,7 @@ rotorPass(Parent, Input, EncryptionFunction, Output,
 %% This is the rotor process. It takes all its channels and C and P as arguments
 %% TODO: Probably want to clean this up by getting rid of the redundant args.
 rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
-      Offset, Notch, NotchPointOffset) ->
+      Notch, NotchPointOffset) ->
     io:format("[RO] ~p C = ~p, P = ~p ~n", [self(), C, P]),
     io:format("[RO] ~p receives on ~p ~n", [self(), Inc_R]),
     IncR = receives(Parent, Inc_R),
@@ -158,30 +155,28 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
 	  io:format("[~p/~p], P = ~p + ~p = ~p~n",
 		    [C, [wrapChar(P + $A)], P, IncR,
 		     [wrapChar(P + IncR + $A)]]),
-	  rotorFunction(Parent, Right, Left, Rotor, P + IncR,
-			Offset),
+	  rotorFunction(Parent, Right, Left, Rotor, P + IncR),
 	  case IncR of
 	    1 ->
 		rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, 1,
-		      P - 25, Offset, Notch, NotchPointOffset);
+		      P - 25, Notch, NotchPointOffset);
 	    _ ->
 		rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
-		      Offset, Notch, NotchPointOffset)
+		      Notch, NotchPointOffset)
 	  end;
       _ ->
 	  io:format("[~p/~p], P = ~p + ~p = ~p~n",
 		    [C, [wrapChar(P + $A)], P, IncR,
 		     [wrapChar(P + IncR + $A)]]),
 	  broadcasts(Parent, self(), Inc_L, NotchBump),
-	  rotorFunction(Parent, Right, Left, Rotor, P + IncR,
-			Offset),
+	  rotorFunction(Parent, Right, Left, Rotor, P + IncR),
 	  case IncR of
 	    1 ->
 		rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C + 1,
-		      P + 1, Offset, Notch, NotchPointOffset);
+		      P + 1, Notch, NotchPointOffset);
 	    _ ->
 		rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
-		      Offset, Notch, NotchPointOffset)
+		      Notch, NotchPointOffset)
 	  end
     end.
 
@@ -351,7 +346,7 @@ enigma(ReflectorName, RotorNames, InitialSetting,
 		   [self(),
 		    configureRotor(element(1, RotorNames),
 				   element(1, InitialSetting)),
-		    none, i3, m1, ref, 0, element(1, RingSettings) - $A, 1,
+		    none, i3, m1, ref, 0, element(1, RingSettings) - $A,
 		    notchFor(element(1, RotorNames)),
 		    element(1, RingSettings) - $A]),
     io:format("Rotor3: ~p~n", [Rotor3]),
@@ -359,14 +354,14 @@ enigma(ReflectorName, RotorNames, InitialSetting,
 		   [self(),
 		    configureRotor(element(2, RotorNames),
 				   element(2, InitialSetting)),
-		    i3, i2, m2, m1, 0, element(2, RingSettings) - $A, 1,
+		    i3, i2, m2, m1, 0, element(2, RingSettings) - $A,
 		    notchFor(element(2, RotorNames)),
 		    element(2, RingSettings) - $A]),
     Rotor1 = spawn(enigma, rotor,
 		   [self(),
 		    configureRotor(element(3, RotorNames),
 				   element(3, InitialSetting)),
-		    i2, i1, m3, m2, 0, element(3, RingSettings) - $A, 1,
+		    i2, i1, m3, m2, 0, element(3, RingSettings) - $A,
 		    notchFor(element(3, RotorNames)),
 		    element(3, RingSettings) - $A]),
     Plugboard = spawn(enigma, plugboard,

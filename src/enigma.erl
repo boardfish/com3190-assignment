@@ -32,7 +32,6 @@ main(Args) ->
 %% stub the Keys channel, and broadcast messages to mock the input from the Lamp
 %% channel.
 keyboard(Parent, Keys, Lamp, Inc) ->
-    io:format("KB: ~p~n", [self()]),
     X = receives(Parent, x),
     broadcasts(Parent, self(), Inc, 1),
     broadcasts(Parent, self(), Keys, X),
@@ -47,7 +46,6 @@ keyboard(Parent, Keys, Lamp, Inc) ->
 reflector(Parent, In, Out, Reflector) ->
     Key = receives(Parent, In),
     F_refl_result = f_refl(Reflector, Key, 1),
-    io:format("[RE] ~p -> ~p.~n", [Key, F_refl_result]),
     broadcasts(Parent, self(), Out, F_refl_result),
     reflector(Parent, In, Out, Reflector).
 
@@ -72,10 +70,8 @@ f_refl(Reflector, Input, ElementToCheck) ->
 %% that input, it accepts on the left channel by swapping its output and input
 %% channels.
 plugboard(Parent, Plugboard, Input, Output, Offset) ->
-    % io:format("PB: ~p~n", [self()]),
     Key = receives(Parent, Input),
     F_plug_result = f_plug(Plugboard, Key),
-    io:format("[PB] ~p -> ~p~n", [Key, F_plug_result]),
     broadcasts(Parent, self(), Output,
 	       wrapChar(F_plug_result + Offset)),
     % Respond on the opposite channel this time.
@@ -104,8 +100,6 @@ rotorPass(Parent, Input, EncryptionFunction, Output,
     F_rotor_result = enigma:EncryptionFunction(Rotor, P,
 					       Key)
 		       - P,
-    % io:format("[FR] Offset = ~p -> Out = ~p",
-    %     [OutputOffset, [F_rotor_result]]),
     broadcasts(Parent, self(), Output,
 	       wrapChar(F_rotor_result)).
 
@@ -116,45 +110,18 @@ rotorPass(Parent, Input, EncryptionFunction, Output,
 %% TODO: Probably want to clean this up by getting rid of the redundant args.
 rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
       Notch, NotchPointOffset) ->
-    io:format("[RO] ~p C = ~p, P = ~p ~n", [self(), C, P]),
-    io:format("[RO] ~p receives on ~p ~n", [self(), Inc_R]),
     IncR = receives(Parent, Inc_R),
     NotchPoint = Notch,
     TurnPoint = wrapChar(25 + $A + NotchPointOffset),
-    io:format("NPO: ~p, Turnpoint: ~p~n",
-	      [NotchPointOffset, [TurnPoint]]),
     NotchBump = case wrapChar(P + $A) of
 		  NotchPoint -> 1;
 		  TurnPoint -> 0;
 		  _ -> 0
 		end,
-    case NotchBump of
-      1 ->
-	  io:format("[~p/~p] Notching/turning. ~p -> N: ~p "
-		    "W: ~p~n",
-		    [C, P, [wrapChar(P + $A)], [NotchPoint], [TurnPoint]]);
-      _ ->
-	  io:format("[~p/~p] Am not notching/turning. ~p "
-		    "~p ~p~n",
-		    [C, P, [wrapChar(P + $A)], [NotchPoint], [TurnPoint]])
-    end,
-    io:format("NotchPoint for ~p (~p) at initial offset "
-	      "~p is ~p. ~n",
-	      [[Notch], Notch - $A, [NotchPointOffset + $A],
-	       NotchPoint]),
-    io:format("TurnPoint for ~p (~p) at initial offset "
-	      "~p is ~p (that many chars from Z?).~n",
-	      [[Notch], Notch - $A, [NotchPointOffset + $A],
-	       [wrapChar(TurnPoint + $A)]]),
     case C of
       TurnPoint ->
 	  % send inc to incl
-	  io:format("~p (~p, ~p) is turning.~n",
-		    [self(), C, [Notch]]),
 	  broadcasts(Parent, self(), Inc_L, NotchBump),
-	  io:format("[~p/~p], P = ~p + ~p = ~p~n",
-		    [C, [wrapChar(P + $A)], P, IncR,
-		     [wrapChar(P + IncR + $A)]]),
 	  rotorFunction(Parent, Right, Left, Rotor, P + IncR),
 	  case IncR of
 	    1 ->
@@ -165,9 +132,6 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
 		      Notch, NotchPointOffset)
 	  end;
       _ ->
-	  io:format("[~p/~p], P = ~p + ~p = ~p~n",
-		    [C, [wrapChar(P + $A)], P, IncR,
-		     [wrapChar(P + IncR + $A)]]),
 	  broadcasts(Parent, self(), Inc_L, NotchBump),
 	  rotorFunction(Parent, Right, Left, Rotor, P + IncR),
 	  case IncR of
@@ -183,10 +147,6 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
 % f_rotor takes the result of offsetting X by P, then looks it up on the rotor.
 f_rotor(Rotor, P, X) ->
     NewCharacter = wrapChar(X + P),
-    io:format("[FR] P = ~p, X = ~p, Result = ~p, Out "
-	      "= ~p~n",
-	      [P, [X], [NewCharacter],
-	       [element(2, lists:keyfind(NewCharacter, 1, Rotor))]]),
     element(2, lists:keyfind(NewCharacter, 1, Rotor)).
 
 %% f_rotor takes the result of offsetting X by P, then does a reverse lookup on
@@ -195,20 +155,7 @@ inverse_f_rotor(Rotor, P, X) ->
     Character = element(1,
 			lists:keyfind(wrapChar(X + P), 2, Rotor)),
     NewCharacter = Character,
-    io:format("~p~n", [lists:keyfind(X + P, 2, Rotor)]),
-    io:format("[FR]#P = ~p, X = ~p, Result = ~p, Out "
-	      "= ~p~n",
-	      [P, X,
-	       element(1, lists:keyfind(wrapChar(X + P), 2, Rotor)),
-	       NewCharacter]),
-    io:format("[FR]#P = ~p, X = ~p, Result = ~p, Out "
-	      "= ~p~n",
-	      [P, [X], [wrapChar(X + P)], [NewCharacter]]),
-    NewCharacter.    % NewCharacter = wrapToRange(P - X, $A, $Z),
-		     % io:format("[FR]#P = ~p, X = ~p, Result = ~p, Out = ~p~n",
-
-          %     [P, X, $A + NewCharacter, ($A + (element(1, lists:keyfind($A + NewCharacter, 2, Rotor)) rem 26))]),
-    % ($A + (element(1, lists:keyfind($A + NewCharacter, 2, Rotor)) rem 26)).
+    NewCharacter.
 
 %%====================================================================
 %% Helper functions
@@ -235,7 +182,6 @@ message_broker(RegReceivers, UnsentMsgs) ->
 			       UnsentMsgs)
 	  end;
       {receives, Channel, Target} ->
-	  % io:format("~p <- ~p~n", [Target, Channel]),
 	  case lists:keyfind(Channel, 1, UnsentMsgs) of
 	    false ->
 		message_broker([{Channel, Target} | RegReceivers],
@@ -252,20 +198,6 @@ message_broker(RegReceivers, UnsentMsgs) ->
 %% message (Value) on some channel (Channel). The message broker keeps this
 %% message until it can be delegated to a channel that is receiving.
 broadcasts(Target, Source, Channel, Value) ->
-    case Channel of
-      x ->
-	  io:format("[-> ~4w] ~p ~p~n",
-		    [Channel, Source,
-		     case Channel of
-		       x -> [Value];
-		       keys -> [Value];
-		       m1 -> [Value];
-		       m2 -> [Value];
-		       m3 -> [Value];
-		       _ -> Value
-		     end]);
-      _ -> io:format("")
-    end,
     Target ! {broadcasts, Source, Channel, Value},
     if Channel == none -> ok;
        true ->
@@ -349,7 +281,6 @@ enigma(ReflectorName, RotorNames, InitialSetting,
 		    none, i3, m1, ref, 0, element(1, RingSettings) - $A,
 		    notchFor(element(1, RotorNames)),
 		    element(1, RingSettings) - $A]),
-    io:format("Rotor3: ~p~n", [Rotor3]),
     Rotor2 = spawn(enigma, rotor,
 		   [self(),
 		    configureRotor(element(2, RotorNames),
@@ -392,7 +323,6 @@ crypt(Enigma_PID, TextString) ->
 %% than the tail), so the list is reversed on output.
 encryptWithState(Enigma_PID, TextString,
 		 EncryptedString) ->
-    io:format("---~nEncrypting ~p~n---~n", [TextString]),
     case TextString of
       [] -> lists:reverse(EncryptedString);
       [Head | Tail] ->

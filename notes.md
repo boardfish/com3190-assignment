@@ -2,6 +2,13 @@
 header-includes: |
   \usepackage{float}
 ---
+
+# COM3190 Assignment
+
+## Part I
+
+**Simon Fish** | Reg. No.: **1601053503**
+
 **a) Describe the flow of messages through the concurrent system, the possible
 synchronisations, and the possible sequences of messages. Identify any problems.
 [15%]**
@@ -30,13 +37,13 @@ I identified the following problems:
   Practically, this means that if multiple $Keyboard$s were used with
   $Enigma$, more characters could be typed on other $Keyboard$s and sent through
   the $Plugboard$. 
-- $Rotor$s have a similar issue that would allow the characters
-  to continue through $Enigma$ to the point of displaying the character. In this
-  instance, there could also be race conditions between incrementing the rotors
-  and sending the encrypted character. These are made void by the fact that
-  $Keyboard$ cannot synchronise with inputs until the $\overline{inc}$ signal is
-  received through the plugboard - that is, any transmissions on the $Rotors$
-  have already occurred.
+- $Rotor$s have a similar issue that would allow the characters to continue
+  through $Enigma$ to the point of displaying the character. In this instance,
+  there could also be race conditions between incrementing the rotors and
+  sending the encrypted character. These may be tricky to detect due to the fact
+  that $Keyboard$ cannot synchronise with inputs until the $\overline{inc}$
+  signal is received through the plugboard - that is, any transmissions on the
+  $Rotors$ have already occurred.
 - After a $Rotor$ has synchronised with $l$ or $r$ once, it will not synchronise
   with $inc_r$ again. It enters a recursion on $RotorFunction(p)$, which cannot
   at any point synchronise with $inc_r$. What this means practically is that
@@ -73,7 +80,7 @@ increment happening during the flow of data through the machine:
 \begin{math}
 \begin{array}{lcl}
 RotorFunction(p) &  =  & r(x) . \overline{l}(f_{rotor}(p,x)). \\  
-		      &     & l(x) . \overline{r}(f_{rotor}(p,x)) \\  
+		      &     & l(x) . \overline{r}(\overline{f_{rotor}}(p,x)) \\  
 \\
 \end{array}
 \end{math}
@@ -119,7 +126,7 @@ Plugboard & = & r(x) . \overline{l}(f_{plug}(x)) . \\
 Rotor(26,p) & = & inc_r . \overline{inc_l} . Rotor(0,p-26) + RotorFunction(p) . Rotor(26,p) \\
 Rotor(c,p) & = & inc_r . Rotor(c+1,p+1) + RotorFunction(p) . Rotor(c,p) \\
 RotorFunction(p) &  =  & r(x) . \overline{l}(f_{rotor}(p,x)). \\  
-		      &     & l(x) . \overline{r}(f_{rotor}(p,x)) \\  
+		      &     & l(x) . \overline{r}(\overline{f_{rotor}}(p,x)) \\  
 \\
 Enigma & = & Reflector[ref/in,ref/out] \\
  & | & Rotor(c_3,p_3)[ref/l,m1/r,i3/inc_r] \\

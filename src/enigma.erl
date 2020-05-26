@@ -238,6 +238,15 @@ wrapToRange(Input, Min, Max) ->
     Min + ((Input - Min) rem ((Max + 1) - Min))
   end.
 
+notchFor(RotorNumber) ->
+  element(2, lists:keyfind(RotorNumber, 1, [
+    {"I", $Q},
+    {"II", $E},
+    {"III", $V},
+    {"IV", $J},
+    {"V", $Z}
+  ])).
+
 % generateRotors(Parent, RotorNames, RingSettings, InitialSetting) ->
 %   InputChannels = {m1, m2, m3},
 %   OutputChannels = {ref, m1, m2},
@@ -259,14 +268,14 @@ enigma(ReflectorName, RotorNames, InitialSetting,
 % rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P) ->
     Rotor3 = spawn(enigma, rotor,
 		   [self(), listFor(rotor, element(1, RotorNames)), none, i3, m1, ref, element(1, RingSettings),
-		    element(1, InitialSetting) - 1, -1, $Q, 0]),
+		    element(1, InitialSetting) - 1, -1, notchFor(element(1, RotorNames)), 0]),
     io:format("Rotor3: ~p~n", [Rotor3]),
     Rotor2 = spawn(enigma, rotor,
 		   [self(), listFor(rotor, element(2, RotorNames)), i3, i2, m2, m1, element(2, RingSettings),
-		    element(2, InitialSetting) - 1, -1, $E, 0]),
+		    element(2, InitialSetting) - 1, -1, notchFor(element(2, RotorNames)), 0]),
     Rotor1 = spawn(enigma, rotor,
 		   [self(), listFor(rotor, element(3, RotorNames)), i2, i1, m3, m2, element(3, RingSettings),
-		    element(3, InitialSetting) - 1, 1, $V, 1]),
+		    element(3, InitialSetting) - 1, 1, notchFor(element(3, RotorNames)), 1]),
     Plugboard = spawn(enigma, plugboard,
 		      [self(), PlugboardPairs, keys, m3, 0]),
     Keyboard = spawn(enigma, keyboard,

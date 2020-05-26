@@ -102,11 +102,7 @@ rotorPass(Parent, Input, EncryptionFunction, Output,
     broadcasts(Parent, self(), Output,
 	       wrapChar(F_rotor_result)).
 
-% NB: offset's actually supposed to be direction and it's redundant
-% the real offset is NotchPointOffset
-
 %% This is the rotor process. It takes all its channels and C and P as arguments
-%% TODO: Probably want to clean this up by getting rid of the redundant args.
 rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
       Notch, NotchPointOffset) ->
     IncR = receives(Parent, Inc_R),
@@ -114,7 +110,6 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
     TurnPoint = wrapChar(25 + $A + NotchPointOffset),
     NotchBump = case wrapChar(P + $A) of
 		  NotchPoint -> 1;
-		  TurnPoint -> 0;
 		  _ -> 0
 		end,
     case C of
@@ -124,7 +119,7 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
 	  rotorFunction(Parent, Right, Left, Rotor, P + IncR),
 	  case IncR of
 	    1 ->
-		rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, 1,
+		rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, 0,
 		      P - 25, Notch, NotchPointOffset);
 	    _ ->
 		rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,

@@ -8,6 +8,7 @@
 %% Call this by running the following in a shell:
 %% rebar3 escriptize && ./_build/default/bin/enigma "Text you want to encrypt \
 %% here"
+%% This won't work with the single file for assignment submission.
 %% ---
 %% Development note: I used this often, passing Res to a second machine's crypt
 %% function to make sure that my implementation was bijective all the way

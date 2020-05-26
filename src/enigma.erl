@@ -90,18 +90,16 @@ f_plug(Plugboard, Input) -> f_refl(Plugboard, Input, 1).
 
 % Todo: calculate f_rotor-result
 % Todo: refactor, there's duplication here
-rotorFunction(Parent, Right, Left, Rotor, C, P, Offset) ->
-    OffsetValue = Offset,
-    rotorPass(Parent, Right, f_rotor, Left, Rotor, C, P, 0, OffsetValue),
-    rotorPass(Parent, Left, inverse_f_rotor, Right, Rotor, C,
-	      P, 0, OffsetValue).
+rotorFunction(Parent, Right, Left, Rotor, P, RotationDirection) ->
+    OffsetValue = RotationDirection,
+    rotorPass(Parent, Right, f_rotor, Left, Rotor, P, OffsetValue),
+    rotorPass(Parent, Left, inverse_f_rotor, Right, Rotor, P, OffsetValue).
 
 % params:
 
-rotorPass(Parent, Input, EncryptionFunction, Output, Rotor, C, P, InputOffset, OutputOffset) ->
-    Key = wrapChar(receives(Parent, Input) + C),
-    F_rotor_result = wrapChar(enigma:EncryptionFunction(Rotor, (P * OutputOffset),
-						 Key) - C),
+rotorPass(Parent, Input, EncryptionFunction, Output, Rotor, P, RotationDirection) ->
+    Key = wrapChar(receives(Parent, Input)),
+    F_rotor_result = enigma:EncryptionFunction(Rotor, (P * RotationDirection), Key),
     % io:format("[FR] Offset = ~p -> Out = ~p",
 	  %     [OutputOffset, [F_rotor_result]]),
     broadcasts(Parent, self(), Output, F_rotor_result).
@@ -116,8 +114,8 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset, Notch, FirstRotor)
         % send inc to incl
         io:format("~p (~p, ~p) is going up.~n", [self(), C, Notch]),
         broadcasts(Parent, self(), Inc_L, 0),
-        io:format("[~p/~p], P = ~p + ~p~n", [C, Notch, P, IncR]),
-        rotorFunction(Parent, Right, Left, Rotor, C, P + IncR, Offset),
+        io:format("[~p/~p], P = ~p + ~p~n", [C, [P + $A], P, IncR]),
+        rotorFunction(Parent, Right, Left, Rotor, P + IncR, Offset),
         case IncR of
           1 -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, 0, P - 26, Offset, Notch, FirstRotor);
           _ -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset, Notch, FirstRotor) end;
@@ -129,10 +127,10 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset, Notch, FirstRotor)
         % end,
         %
         broadcasts(Parent, self(), Inc_L, max(FirstRotor, abs(IncR - 1))),
-        io:format("[~p/~p], P = ~p + ~p~n", [C, Notch, P, IncR]),
-        rotorFunction(Parent, Right, Left, Rotor, C, P + IncR, Offset),
+        io:format("[~p/~p], P = ~p + ~p~n", [C, [P + $A], P, IncR]),
+        rotorFunction(Parent, Right, Left, Rotor, P + IncR, Offset),
         case IncR of
-          1 -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P + 1, Offset, Notch, FirstRotor);
+          1 -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C + 1, P + 1, Offset, Notch, FirstRotor);
           _ -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset, Notch, FirstRotor) end
     end.
 

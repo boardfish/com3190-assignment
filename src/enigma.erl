@@ -6,9 +6,12 @@
 
 %% escript entry point
 %% Call this by running the following in a shell:
-%% rebar3 escriptize && ./_build/default/bin/enigma "Text you want to encrypt here"
+%% rebar3 escriptize && ./_build/default/bin/enigma "Text you want to encrypt \
+%% here"
 %% ---
-%% Development note: I used this often, passing Res to a second machine's crypt
+%% Development note: I used this often, passing Res to a second machine's crypt 
+%% function to make sure that my implementation was bijective all the way
+%% through.
 main(Args) ->
     Enigma = enigma:setup("B", {"II", "I", "III"},
 			  {26, 23, 4},
@@ -18,12 +21,16 @@ main(Args) ->
     Res = enigma:crypt(Enigma, Args),
     io:format("Result: ~p~n", [Res]).
 
-normaliseAsciiNum(Num) -> Num rem 25 + 50.
-
 %%====================================================================
 %% Enigma parts
 %%====================================================================
 
+%% Keyboard: Reflects the initial specification using receives and broadcasts.
+%% I tested this by observing the broadcasts and receives - early in
+%% development, both methods logged as they were called, allowing me to do this
+%% with ease. After devising the message broker, I could spawn dummy receives to
+%% stub the Keys channel, and broadcast messages to mock the input from the Lamp
+%% channel.
 keyboard(Parent, Keys, Lamp, Inc) ->
     io:format("KB: ~p~n", [self()]),
     X = receives(Parent, x),
@@ -33,14 +40,21 @@ keyboard(Parent, Keys, Lamp, Inc) ->
     broadcasts(Parent, self(), x, Output),
     keyboard(Parent, Keys, Lamp, Inc).
 
+%% Reflector: Also reflects the initial spec. This was one of the earlier parts
+%% I worked on, as it was easy to both implement and test in isolation - it
+%% didn't have any state of its own, unlike the rotors. I tested it in a similar
+%% manner to the keyboard, with mocking and stubbing of the inlet and outlet.
 reflector(Parent, In, Out, Reflector) ->
-    % io:format("RE: ~p ~n", [self()]),
     Key = receives(Parent, In),
     F_refl_result = f_refl(Reflector, Key, 1),
     io:format("[RE] ~p -> ~p.~n", [Key, F_refl_result]),
     broadcasts(Parent, self(), Out, F_refl_result),
     reflector(Parent, In, Out, Reflector).
 
+%% f_refl checks the reflector at both sides for the character it wishes to
+%% reflect. The element of the reflector tuples that is being checked is
+%% ElementToCheck - if this goes out of range, the original input is returned as
+%% a fallback.
 f_refl(Reflector, Input, ElementToCheck) ->
     if (ElementToCheck < 1) or (ElementToCheck > 2) ->
 	   Input;
@@ -51,6 +65,12 @@ f_refl(Reflector, Input, ElementToCheck) ->
 	   end
     end.
 
+%% My implementation of Plugboard deviates from the original spec - rather than
+%% a choice of either channel being available, it only responds on the channel
+%% that should be accepting input. If the input is making its way towards the
+%% reflector from the keyboard, it accepts on the right channel. After taking
+%% that input, it accepts on the left channel by swapping its output and input
+%% channels.
 plugboard(Parent, Plugboard, Input, Output, Offset) ->
     % io:format("PB: ~p~n", [self()]),
     Key = receives(Parent, Input),
@@ -62,10 +82,14 @@ plugboard(Parent, Plugboard, Input, Output, Offset) ->
     plugboard(Parent, Plugboard, Output, Input,
 	      -1 * Offset).
 
+%% f_plug works in the same way as f_refl, as both map characters to just one
+%% other bijectively. Thus, it's safe to inherit that behaviour. 
 f_plug(Plugboard, Input) -> f_refl(Plugboard, Input, 1).
 
-% Todo: calculate f_rotor-result
-% Todo: refactor, there's duplication here
+%% RotorFunction is implemented similarly to Plugboard - rather than accepting
+%% on both channels, it accepts on the right channel first, then on the left.
+%% In this instance, it's necessary to specify the function that's being
+%% executed, as f_rotor isn't bijective and needs a specified inverse.
 rotorFunction(Parent, Right, Left, Rotor, P,
 	      RotationDirection) ->
     OffsetValue = RotationDirection,
@@ -74,8 +98,9 @@ rotorFunction(Parent, Right, Left, Rotor, P,
     rotorPass(Parent, Left, inverse_f_rotor, Right, Rotor,
 	      P, OffsetValue).
 
-% params:
-
+%% rotorPass represents one pass of data through a rotor, receiving on an input
+%% and transforming it before outputting it.
+%% The result of the rotor function is offset by P anticlockwise.
 rotorPass(Parent, Input, EncryptionFunction, Output,
 	  Rotor, P, RotationDirection) ->
     Key = wrapChar(receives(Parent, Input)),
@@ -89,8 +114,11 @@ rotorPass(Parent, Input, EncryptionFunction, Output,
 
 % NB: offset's actually supposed to be direction and it's redundant
 % the real offset is NotchPointOffset
+
+%% This is the rotor process. It takes all its channels and C and P as arguments
+%% TODO: Probably want to clean this up by getting rid of the redundant args.
 rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
-      Offset, Notch, FirstRotor, NotchPointOffset) ->
+      Offset, Notch, NotchPointOffset) ->
     io:format("[RO] ~p C = ~p, P = ~p ~n", [self(), C, P]),
     io:format("[RO] ~p receives on ~p ~n", [self(), Inc_R]),
     IncR = receives(Parent, Inc_R),
@@ -135,18 +163,12 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
 	  case IncR of
 	    1 ->
 		rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, 1,
-		      P - 25, Offset, Notch, FirstRotor, NotchPointOffset);
+		      P - 25, Offset, Notch, NotchPointOffset);
 	    _ ->
 		rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
-		      Offset, Notch, FirstRotor, NotchPointOffset)
+		      Offset, Notch, NotchPointOffset)
 	  end;
       _ ->
-	  %
-	  % case C of
-	  %   Notch -> io:format(">> [~p/~p] N) Sending ~p to next rotor...~n", [C, Notch, abs(IncR - 1)]);
-	  %   _ -> io:format(">> [~p/~p] Sending ~p to next rotor...~n", [C, Notch, max(FirstRotor, 0)])
-	  % end,
-	  %
 	  io:format("[~p/~p], P = ~p + ~p = ~p~n",
 		    [C, [wrapChar(P + $A)], P, IncR,
 		     [wrapChar(P + IncR + $A)]]),
@@ -156,13 +178,14 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
 	  case IncR of
 	    1 ->
 		rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C + 1,
-		      P + 1, Offset, Notch, FirstRotor, NotchPointOffset);
+		      P + 1, Offset, Notch, NotchPointOffset);
 	    _ ->
 		rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
-		      Offset, Notch, FirstRotor, NotchPointOffset)
+		      Offset, Notch, NotchPointOffset)
 	  end
     end.
 
+% f_rotor takes the result of offsetting X by P, then looks it up on the rotor.
 f_rotor(Rotor, P, X) ->
     NewCharacter = wrapChar(X + P),
     io:format("[FR] P = ~p, X = ~p, Result = ~p, Out "
@@ -171,6 +194,8 @@ f_rotor(Rotor, P, X) ->
 	       [element(2, lists:keyfind(NewCharacter, 1, Rotor))]]),
     element(2, lists:keyfind(NewCharacter, 1, Rotor)).
 
+%% f_rotor takes the result of offsetting X by P, then does a reverse lookup on
+%% the rotor.
 inverse_f_rotor(Rotor, P, X) ->
     Character = element(1,
 			lists:keyfind(wrapChar(X + P), 2, Rotor)),
@@ -194,12 +219,12 @@ inverse_f_rotor(Rotor, P, X) ->
 %% Helper functions
 %%====================================================================
 
-% Shared message broker. Each of the Enigma parts communicates on channels whose
-% names are passed into each one as arguments. The message broker, along with
-% broadcasts and receives, make sure that each process blocks until a fitting
-% message comes in on the right channel. This makes it a lot easier for me to
-% move from the pi-calculus representation to Erlang code and also means that
-% processes don't depend on PIDs (that might not yet exist) on startup.
+%% Shared message broker. Each of the Enigma parts communicates on channels
+%% whose names are passed into each one as arguments. The message broker, along
+%% with broadcasts and receives, make sure that each process blocks until a
+%% fitting message comes in on the right channel. This makes it a lot easier for
+%% me to move from the pi-calculus representation to Erlang code and also means
+%% that processes don't depend on PIDs (that might not yet exist) on startup.
 message_broker(RegReceivers, UnsentMsgs) ->
     receive
       {broadcasts, Source, Channel, Value} ->
@@ -228,9 +253,9 @@ message_broker(RegReceivers, UnsentMsgs) ->
 	  end
     end.
 
-% Target should be a message broker. Source gives the PID of the process that
-% called for the broadcast, for debug reasons. Channel is an atom, and Value is
-% the message content.
+%% The broadcasts helper function alerts the message broker (Target) of a
+%% message (Value) on some channel (Channel). The message broker keeps this
+%% message until it can be delegated to a channel that is receiving.
 broadcasts(Target, Source, Channel, Value) ->
     case Channel of
       x ->
@@ -252,61 +277,61 @@ broadcasts(Target, Source, Channel, Value) ->
 	   receive {ok, {broadcasts, Channel, Value}} -> ok end
     end.
 
-% receives awaits a message on the channel, then returns its value.
+%% receives alerts the message broker (Parent) that a channel is ready to
+%% receive a message. It then awaits a response from the broker on the channel,
+%% and returns its value.
 receives(Parent, Channel) ->
     Parent ! {receives, Channel, self()},
     receive {receives, Channel, Value} -> Value end.
 
-% This version awaits a message on the channel, then runs a callback function
-% passed to it.
+%% This version awaits a message on the channel, then runs a callback function
+%% passed to it.
 receives(Parent, Channel, Callback) ->
     Parent ! {receives, Channel, self()},
     receive {receives, Channel, Value} -> Callback() end.
 
-% Takes an atom and a string, and returns the return value of the corresponding
-% function in enigma.hrl.
+%% Takes an atom and a string, and returns the return value of the corresponding
+%% function in enigma.hrl. e.g. listFor(rotor, "III") -> rotorIII().
 listFor(Type, Name) ->
     FunctionName =
 	list_to_atom(lists:flatten([atom_to_list(Type), Name])),
     enigma:FunctionName().
 
-% Wraps to a range, inclusive of max.
+%% Wraps numbers to a range, inclusive of max. Only ever used to wrap characters
+%% that have been offset, thus wrapChar.
 wrapToRange(Input, Min, Max) ->
     if Input < Min ->
 	   $A + ((Input - $A) rem 26 + 26) rem 26;
        true -> Min + (Input - Min) rem (Max + 1 - Min)
     end.
 
+%% Wraps characters that have been offset. wrapChar($Z + 1) = $A.
+%% wrapChar($A - 1) = $Z.
 wrapChar(Input) -> wrapToRange(Input, $A, $Z).
 
+%% Returns the character at which the notch sits for any of the first five
+%% rotors.
 notchFor(RotorNumber) ->
     element(2,
 	    lists:keyfind(RotorNumber, 1,
 			  [{"I", $Q}, {"II", $E}, {"III", $V}, {"IV", $J},
 			   {"V", $Z}])).
 
-% generateRotors(Parent, RotorNames, RingSettings, InitialSetting) ->
-%   InputChannels = {m1, m2, m3},
-%   OutputChannels = {ref, m1, m2},
-%   rotor(Parent, incl, incr, right, left, c, p) element(1, RotorNames)
-%   % for each rotorName:
-%   Rotor = listFor(rotor, RotorName)
-%   {
-%     rotor(Parent, )
-%   }
-
+%% Calculates a rotor's Ringstellung as detailed. A Ringstellung of {1,1,1} is
+%% considered the default, and thus doesn't result in any offsetting at all.
 ringstellung(Rotor, Ringstellung) ->
-    % How To Ringstellung
-    % 1: Shift all the characters up by the Ringstellung minus 1!
+    % 1: Shift all the characters up by the Ringstellung minus 1
     YShiftedRotorData = [{X,
 			  wrapChar(Y + (Ringstellung - 1))}
 			 || {X, Y} <- Rotor],
-    % 2: Shift the other side up by the Ringstellung minus 1!
+    % 2: Shift the other side up by the Ringstellung minus 1
     XShiftedRotorData = [{wrapChar(X + (Ringstellung - 1)),
 			  Y}
 			 || {X, Y} <- YShiftedRotorData],
     XShiftedRotorData.
 
+%% Gets a rotor list and sets its Ringstellung in one fell swoop.
+%% E.g. configureRotor("I", 3) gets you rotorI in C Ringstellung.
 configureRotor(RotorName, Ringstellung) ->
     ringstellung(listFor(rotor, RotorName), Ringstellung).
 
@@ -314,6 +339,9 @@ configureRotor(RotorName, Ringstellung) ->
 %% Exported functions
 %%====================================================================
 
+%% Host process for the Enigma itself. Spawns all of the parts of the Enigma,
+%% wired up on the standard channels suggested in the assignment document, and
+%% hosts the message broker process.
 enigma(ReflectorName, RotorNames, InitialSetting,
        PlugboardPairs, RingSettings) ->
     Reflector = spawn(enigma, reflector,
@@ -324,7 +352,7 @@ enigma(ReflectorName, RotorNames, InitialSetting,
 		    configureRotor(element(1, RotorNames),
 				   element(1, InitialSetting)),
 		    none, i3, m1, ref, 0, element(1, RingSettings) - $A, 1,
-		    notchFor(element(1, RotorNames)), 0,
+		    notchFor(element(1, RotorNames)),
 		    element(1, RingSettings) - $A]),
     io:format("Rotor3: ~p~n", [Rotor3]),
     Rotor2 = spawn(enigma, rotor,
@@ -332,14 +360,14 @@ enigma(ReflectorName, RotorNames, InitialSetting,
 		    configureRotor(element(2, RotorNames),
 				   element(2, InitialSetting)),
 		    i3, i2, m2, m1, 0, element(2, RingSettings) - $A, 1,
-		    notchFor(element(2, RotorNames)), 0,
+		    notchFor(element(2, RotorNames)),
 		    element(2, RingSettings) - $A]),
     Rotor1 = spawn(enigma, rotor,
 		   [self(),
 		    configureRotor(element(3, RotorNames),
 				   element(3, InitialSetting)),
 		    i2, i1, m3, m2, 0, element(3, RingSettings) - $A, 1,
-		    notchFor(element(3, RotorNames)), 1,
+		    notchFor(element(3, RotorNames)),
 		    element(3, RingSettings) - $A]),
     Plugboard = spawn(enigma, plugboard,
 		      [self(), PlugboardPairs, keys, m3, 0]),
@@ -347,12 +375,15 @@ enigma(ReflectorName, RotorNames, InitialSetting,
 		     [self(), keys, keys, i1]),
     message_broker([], []).
 
+%% Spawns, and returns the PID of, an Enigma machine process.
 setup(ReflectorName, RotorNames, RingSettings,
       PlugboardPairs, InitialSetting) ->
     spawn(enigma, enigma,
 	  [ReflectorName, RotorNames, RingSettings,
 	   PlugboardPairs, InitialSetting]).
 
+%% Returns the string of responses from the Enigma machine. The handling of
+%% communications is delegated to a child process that keeps track of state.
 crypt(Enigma_PID, TextString) ->
     % Convert everything to uppercase
     encryptWithState(Enigma_PID,
@@ -360,6 +391,10 @@ crypt(Enigma_PID, TextString) ->
 				  string:uppercase(TextString)),
 		     []).
 
+%% Handles communications with the Enigma, passing in characters on channel x
+%% and listening for the Enigma's output on the same channel. The responses from
+%% the Enigma are collected in reverse order (i.e. appending to the head, rather
+%% than the tail), so the list is reversed on output.
 encryptWithState(Enigma_PID, TextString,
 		 EncryptedString) ->
     io:format("---~nEncrypting ~p~n---~n", [TextString]),
@@ -372,4 +407,5 @@ encryptWithState(Enigma_PID, TextString,
 			   [EncryptedChar | EncryptedString])
     end.
 
+%% TODO: not implemented.
 kill(Enigma_PID) -> ok.

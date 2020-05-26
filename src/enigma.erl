@@ -211,9 +211,10 @@ listFor(Type, Name) ->
 %% Wraps numbers to a range, inclusive of max. Only ever used to wrap characters
 %% that have been offset, thus wrapChar.
 wrapToRange(Input, Min, Max) ->
+    Range = Max - Min + 1,
     if Input < Min ->
-	   Min + ((Input - Min) rem 26 + 26) rem 26;
-       true -> Min + (Input - Min) rem (Max + 1 - Min)
+	   Min + ((Input - Min) rem Range + Range) rem Range;
+       true -> Min + (Input - Min) rem Range
     end.
 
 %% Wraps characters that have been offset. wrapChar($Z + 1) = $A.

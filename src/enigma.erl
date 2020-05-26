@@ -122,11 +122,11 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset, Notch, FirstRotor)
       26 ->
         % send inc to incl
         io:format("~p (~p, ~p) is going up.~n", [self(), C, Notch]),
-        broadcasts(Parent, self(), Inc_L, 1),
+        broadcasts(Parent, self(), Inc_L, 0),
         io:format("[~p/~p], P = ~p + ~p = ~p~n", [C, [P + $A], P, IncR, [P + IncR + $A]]),
         rotorFunction(Parent, Right, Left, Rotor, P + IncR, Offset),
         case IncR of
-          1 -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, 0, P - 26, Offset, Notch, FirstRotor);
+          1 -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, 1, P - 25, Offset, Notch, FirstRotor);
           _ -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset, Notch, FirstRotor) end;
       _ ->
         %

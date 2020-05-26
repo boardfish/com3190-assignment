@@ -99,9 +99,9 @@ rotorFunction(Parent, Right, Left, Rotor, C, P, Offset) ->
 % params:
 
 rotorPass(Parent, Input, EncryptionFunction, Output, Rotor, C, P, InputOffset, OutputOffset) ->
-    Key = receives(Parent, Input) + (C - $A),
-    F_rotor_result = enigma:EncryptionFunction(Rotor, (P * OutputOffset),
-						 Key) - (C - $A),
+    Key = wrapChar(receives(Parent, Input) + C),
+    F_rotor_result = wrapChar(enigma:EncryptionFunction(Rotor, (P * OutputOffset),
+						 Key) - C),
     % io:format("[FR] Offset = ~p -> Out = ~p",
 	  %     [OutputOffset, [F_rotor_result]]),
     broadcasts(Parent, self(), Output, F_rotor_result).
@@ -111,15 +111,15 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset, Notch, FirstRotor)
     io:format("[RO] ~p receives on ~p ~n", [self(), Inc_R]),
     IncR = receives(Parent, Inc_R),
     Break = lists:member(wrapChar(C + P), [$Z + 1, Notch]),
-    case Break of
-      true ->
+    case C of
+      26 ->
         % send inc to incl
         io:format("~p (~p, ~p) is going up.~n", [self(), C, Notch]),
-        broadcasts(Parent, self(), Inc_L, case C of Notch -> 1; _ -> 0 end),
+        broadcasts(Parent, self(), Inc_L, 0),
         io:format("[~p/~p], P = ~p + ~p~n", [C, Notch, P, IncR]),
         rotorFunction(Parent, Right, Left, Rotor, C, P + IncR, Offset),
         case IncR of
-          1 -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, $A, P - 25, Offset, Notch, FirstRotor);
+          1 -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, 0, P - 26, Offset, Notch, FirstRotor);
           _ -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset, Notch, FirstRotor) end;
       _ ->
         %
@@ -269,15 +269,15 @@ enigma(ReflectorName, RotorNames, InitialSetting,
 		      [self(), ref, ref, listFor(reflector, ReflectorName)]),
 % rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P) ->
     Rotor3 = spawn(enigma, rotor,
-		   [self(), listFor(rotor, element(1, RotorNames)), none, i3, m1, ref, element(1, RingSettings),
-		    element(1, InitialSetting) - 1, -1, notchFor(element(1, RotorNames)), 0]),
+		   [self(), listFor(rotor, element(1, RotorNames)), none, i3, m1, ref, element(1, InitialSetting) - 1,
+		    element(1, RingSettings) - $A, -1, notchFor(element(1, RotorNames)), 0]),
     io:format("Rotor3: ~p~n", [Rotor3]),
     Rotor2 = spawn(enigma, rotor,
-		   [self(), listFor(rotor, element(2, RotorNames)), i3, i2, m2, m1, element(2, RingSettings),
-		    element(2, InitialSetting) - 1, -1, notchFor(element(2, RotorNames)), 0]),
+		   [self(), listFor(rotor, element(2, RotorNames)), i3, i2, m2, m1, element(2, InitialSetting) - 1,
+		    element(2, RingSettings) - $A, -1, notchFor(element(2, RotorNames)), 0]),
     Rotor1 = spawn(enigma, rotor,
-		   [self(), listFor(rotor, element(3, RotorNames)), i2, i1, m3, m2, element(3, RingSettings),
-		    element(3, InitialSetting) - 1, 1, notchFor(element(3, RotorNames)), 1]),
+		   [self(), listFor(rotor, element(3, RotorNames)), i2, i1, m3, m2, element(3, InitialSetting) - 1,
+		    element(3, RingSettings) - $A, 1, notchFor(element(3, RotorNames)), 1]),
     Plugboard = spawn(enigma, plugboard,
 		      [self(), PlugboardPairs, keys, m3, 0]),
     Keyboard = spawn(enigma, keyboard,

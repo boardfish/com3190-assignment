@@ -1,7 +1,32 @@
+%%%--------------------------------------------------------------------- 
+%%% Enigma (COM3190 Assignment) by Simon Fish
+%%%--------------------------------------------------------------------- 
+%%% Description module enigma
+%%%--------------------------------------------------------------------- 
+%%% This module serves to emulate the Enigma I machine. The first five
+%%% rotors are emulated, and only three rotors can be used. Initial
+%%% values for P and Ringstellungen can be supplied.
+%%%--------------------------------------------------------------------- 
+%%% Exports
+%%%--------------------------------------------------------------------- 
+%%% setup/5 - Takes a reflector name, a triple of rotors, a triple of
+%%%           ring settings, a list of plugboard pairs, and an initial
+%%%           setting, and returns a PID of an EM. e.g.:
+%%% 
+%%%           enigma:setup(
+%%%             "B",
+%%%             {"II","I","III"},
+%%%             {26,23,4},                           % (Z, W, D Ringstellungen)
+%%%             [{$E,$Z}, {$B,$L}, {$X,$P}, {$W,$R}, {$I,$U}, {$V,$M}, {$J,$O}],
+%%%             {$A,$G,$I}
+%%%           ) 
+%%% crypt/2 - Given an EM PID and a string, encrypts the string and
+%%%           returns the result.
+%%%  kill/1 - Kills an EM if supplied with its PID.
+%%%--------------------------------------------------------------------- 
 -module(enigma).
-
 -include("enigma.hrl").
-
+%% Bad practice, I know - EUnit would complain otherwise.
 -compile(export_all).
 
 %% escript entry point

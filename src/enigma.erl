@@ -24,13 +24,13 @@ main(Args) ->
     % io:format("Done! Check this out: ~p~n", [Res]),
     % io:format("Done! Check this out: ~p~n", [Res2]).
     
-    Enigma = enigma:setup("B",{"I","II","III"},{1,1,1},[], {$A,$A,$A}),
+    Enigma = enigma:setup("B",{"II","I","III"},{1,1,1},[], {$A,$A,$A}),
     Res = enigma:crypt(Enigma,Args),
     io:format("starting reverse~n---~n"),
-    % Enigma2 = enigma:setup("B",{"I","II","III"},{1,1,1},[], {$A,$A,$A}),
-    % Res2 = enigma:crypt(Enigma2,Res),
-    io:format("Done! Check this out: ~p~n", [Res]).
-    % io:format("Done! Check this out: ~p~n", [Res2]).
+    Enigma2 = enigma:setup("B",{"II","I","III"},{1,1,1},[], {$A,$A,$A}),
+    Res2 = enigma:crypt(Enigma2,Res),
+    io:format("Done! Check this out: ~p~n", [Res]),
+    io:format("Done! Check this out: ~p~n", [Res2]).
 
     % Rotor = spawn(enigma, rotor,
     %   [Parent, incl, incr, r, l, 0, 0]),

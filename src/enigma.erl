@@ -72,8 +72,7 @@ f_refl(Reflector, Input, ElementToCheck) ->
 plugboard(Parent, Plugboard, Input, Output) ->
     Key = receives(Parent, Input),
     F_plug_result = f_plug(Plugboard, Key),
-    broadcasts(Parent, Output,
-	       wrapChar(F_plug_result)),
+    broadcasts(Parent, Output, wrapChar(F_plug_result)),
     % Respond on the opposite channel this time.
     plugboard(Parent, Plugboard, Output, Input).
 
@@ -99,8 +98,7 @@ rotorPass(Parent, Input, EncryptionFunction, Output,
     F_rotor_result = enigma:EncryptionFunction(Rotor, P,
 					       Key)
 		       - P,
-    broadcasts(Parent, Output,
-	       wrapChar(F_rotor_result)).
+    broadcasts(Parent, Output, wrapChar(F_rotor_result)).
 
 %% This is the rotor process. It takes all its channels and C and P as arguments
 rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
@@ -128,8 +126,8 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
       _ ->
 	  broadcasts(Parent, Inc_L, NotchBump),
 	  rotorFunction(Parent, Right, Left, Rotor, P + IncR),
-		rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C + IncR,
-		      P + IncR, Notch, NotchPointOffset)
+	  rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left,
+		C + IncR, P + IncR, Notch, NotchPointOffset)
     end.
 
 % f_rotor takes the result of offsetting X by P, then looks it up on the rotor.
@@ -257,32 +255,31 @@ configureRotor(RotorName, Ringstellung) ->
 enigma(ReflectorName, RotorNames, InitialSetting,
        PlugboardPairs, RingSettings) ->
     spawn(enigma, reflector,
-		      [self(), ref, ref, listFor(reflector, ReflectorName)]),
+	  [self(), ref, ref, listFor(reflector, ReflectorName)]),
     spawn(enigma, rotor,
-		   [self(),
-		    configureRotor(element(1, RotorNames),
-				   element(1, InitialSetting)),
-		    none, i3, m1, ref, 0, element(1, RingSettings) - $A,
-		    notchFor(element(1, RotorNames)),
-		    element(1, RingSettings) - $A]),
+	  [self(),
+	   configureRotor(element(1, RotorNames),
+			  element(1, InitialSetting)),
+	   none, i3, m1, ref, 0, element(1, RingSettings) - $A,
+	   notchFor(element(1, RotorNames)),
+	   element(1, RingSettings) - $A]),
     spawn(enigma, rotor,
-		   [self(),
-		    configureRotor(element(2, RotorNames),
-				   element(2, InitialSetting)),
-		    i3, i2, m2, m1, 0, element(2, RingSettings) - $A,
-		    notchFor(element(2, RotorNames)),
-		    element(2, RingSettings) - $A]),
+	  [self(),
+	   configureRotor(element(2, RotorNames),
+			  element(2, InitialSetting)),
+	   i3, i2, m2, m1, 0, element(2, RingSettings) - $A,
+	   notchFor(element(2, RotorNames)),
+	   element(2, RingSettings) - $A]),
     spawn(enigma, rotor,
-		   [self(),
-		    configureRotor(element(3, RotorNames),
-				   element(3, InitialSetting)),
-		    i2, i1, m3, m2, 0, element(3, RingSettings) - $A,
-		    notchFor(element(3, RotorNames)),
-		    element(3, RingSettings) - $A]),
+	  [self(),
+	   configureRotor(element(3, RotorNames),
+			  element(3, InitialSetting)),
+	   i2, i1, m3, m2, 0, element(3, RingSettings) - $A,
+	   notchFor(element(3, RotorNames)),
+	   element(3, RingSettings) - $A]),
     spawn(enigma, plugboard,
-		      [self(), PlugboardPairs, keys, m3]),
-    spawn(enigma, keyboard,
-		     [self(), keys, keys, i1]),
+	  [self(), PlugboardPairs, keys, m3]),
+    spawn(enigma, keyboard, [self(), keys, keys, i1]),
     message_broker([], []).
 
 %% Spawns, and returns the PID of, an Enigma machine process.
@@ -294,8 +291,8 @@ setup(ReflectorName, RotorNames, RingSettings,
 
 %% Returns the string of responses from the Enigma machine. The handling of
 %% communications is delegated to a child process that keeps track of state.
+%% Converts everything to uppercase, then strips out anything that's not [A-Z].
 crypt(Enigma_PID, TextString) ->
-    % Convert everything to uppercase
     encryptWithState(Enigma_PID,
 		     lists:filter(fun (X) -> (X =< $Z) and (X >= $A) end,
 				  string:uppercase(TextString)),

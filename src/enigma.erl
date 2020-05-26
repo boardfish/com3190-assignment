@@ -155,6 +155,7 @@ inverse_f_rotor(Rotor, P, X) ->
 %% that processes don't depend on PIDs (that might not yet exist) on startup.
 message_broker(RegReceivers, UnsentMsgs) ->
     receive
+      {broadcasts, _, commands, kill} -> ok;
       {broadcasts, Source, Channel, Value} ->
 	  case lists:keyfind(Channel, 1, RegReceivers) of
 	    false ->
@@ -187,8 +188,9 @@ message_broker(RegReceivers, UnsentMsgs) ->
 %% notified when its input has been addresssed.
 broadcasts(Target, Channel, Value) ->
     Target ! {broadcasts, self(), Channel, Value},
-    if Channel == none -> ok;
-       true ->
+    case Channel of
+      none -> ok;
+      _ ->
 	   receive {ok, {broadcasts, Channel, Value}} -> ok end
     end.
 
@@ -254,32 +256,32 @@ configureRotor(RotorName, Ringstellung) ->
 %% hosts the message broker process.
 enigma(ReflectorName, RotorNames, InitialSetting,
        PlugboardPairs, RingSettings) ->
-    spawn(enigma, reflector,
+    spawn_link(enigma, reflector,
 	  [self(), ref, ref, listFor(reflector, ReflectorName)]),
-    spawn(enigma, rotor,
+    spawn_link(enigma, rotor,
 	  [self(),
 	   configureRotor(element(1, RotorNames),
 			  element(1, InitialSetting)),
 	   none, i3, m1, ref, 0, element(1, RingSettings) - $A,
 	   notchFor(element(1, RotorNames)),
 	   element(1, RingSettings) - $A]),
-    spawn(enigma, rotor,
+    spawn_link(enigma, rotor,
 	  [self(),
 	   configureRotor(element(2, RotorNames),
 			  element(2, InitialSetting)),
 	   i3, i2, m2, m1, 0, element(2, RingSettings) - $A,
 	   notchFor(element(2, RotorNames)),
 	   element(2, RingSettings) - $A]),
-    spawn(enigma, rotor,
+    spawn_link(enigma, rotor,
 	  [self(),
 	   configureRotor(element(3, RotorNames),
 			  element(3, InitialSetting)),
 	   i2, i1, m3, m2, 0, element(3, RingSettings) - $A,
 	   notchFor(element(3, RotorNames)),
 	   element(3, RingSettings) - $A]),
-    spawn(enigma, plugboard,
+    spawn_link(enigma, plugboard,
 	  [self(), PlugboardPairs, keys, m3]),
-    spawn(enigma, keyboard, [self(), keys, keys, i1]),
+    spawn_link(enigma, keyboard, [self(), keys, keys, i1]),
     message_broker([], []).
 
 %% Spawns, and returns the PID of, an Enigma machine process.
@@ -313,5 +315,9 @@ encryptWithState(Enigma_PID, TextString,
 			   [EncryptedChar | EncryptedString])
     end.
 
-%% TODO: not implemented.
-kill(Enigma_PID) -> ok.
+%% Sends a kill signal to an Engima PID. It figures that if all the processes
+%% are linked to the Enigma and it dies, they should die with it. However, I
+%% couldn't find a way to repeatably test this in time for the deadline.
+%% It might have something to do with the message broker possibly having a
+%% different PID to the Enigma itself
+kill(Enigma_PID) -> broadcasts(Enigma_PID, commands, kill).

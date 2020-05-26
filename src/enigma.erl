@@ -60,7 +60,7 @@ reflector(Parent, In, Out, Reflector) ->
     % io:format("RE: ~p ~n", [self()]),
     Key = receives(Parent, In),
     F_refl_result = f_refl(Reflector, Key, 1),
-    io:format("[RE] ~p -> ~p.~n", [Key, F_refl_result]),
+    io:format("[RE] ~p -> ~p.~n", [[Key], [F_refl_result]]),
     broadcasts(Parent, self(), Out, F_refl_result),
     reflector(Parent, In, Out, Reflector).
 
@@ -110,31 +110,29 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset, Notch, FirstRotor)
     io:format("[RO] ~p C = ~p, P = ~p ~n", [self(), C, P]),
     io:format("[RO] ~p receives on ~p ~n", [self(), Inc_R]),
     IncR = receives(Parent, Inc_R),
-    case C of
-      $Z ->
+    Break = lists:member(wrapToRange(C + P, $A, $Z), [$Z + 1, Notch]),
+    case Break of
+      true ->
         % send inc to incl
-        broadcasts(Parent, self(), Inc_L, IncR),
-        io:format("[~p/~p], rotorFunction(Parent, Right, Left, Rotor, ~p + ~p, Offset),~n", [C, Notch, P, IncR]),
+        io:format("~p (~p, ~p) is going up.~n", [self(), C, Notch]),
+        broadcasts(Parent, self(), Inc_L, case C of Notch -> 1; _ -> 0 end),
+        io:format("[~p/~p], P = ~p + ~p~n", [C, Notch, P, IncR]),
         rotorFunction(Parent, Right, Left, Rotor, P + IncR, Offset),
         case IncR of
-          1 -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, 0, P - 25, Offset, Notch, FirstRotor);
+          1 -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, $A, P - 25, Offset, Notch, FirstRotor);
           _ -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset, Notch, FirstRotor) end;
       _ ->
         %
-        case C of 
-          Notch -> io:format(">> [~p/~p] N) Sending ~p to next rotor...~n", [C, Notch, abs(IncR - 1)]);
-          _ -> io:format(">> [~p/~p] Sending ~p to next rotor...~n", [C, Notch, max(FirstRotor, 0)])
-        end,
+        % case C of 
+        %   Notch -> io:format(">> [~p/~p] N) Sending ~p to next rotor...~n", [C, Notch, abs(IncR - 1)]);
+        %   _ -> io:format(">> [~p/~p] Sending ~p to next rotor...~n", [C, Notch, max(FirstRotor, 0)])
+        % end,
         %
-        broadcasts(Parent, self(), Inc_L, case C of 
-            Notch -> abs(IncR - 1); %+ FirstRotor;
-            _ -> max(FirstRotor, 0)
-          end
-        ),
-        io:format("[~p/~p], rotorFunction(Parent, Right, Left, Rotor, ~p + ~p, Offset),~n", [C, Notch, P, IncR]),
+        broadcasts(Parent, self(), Inc_L, max(FirstRotor, abs(IncR - 1))),
+        io:format("[~p/~p], P = ~p + ~p~n", [C, Notch, P, IncR]),
         rotorFunction(Parent, Right, Left, Rotor, P + IncR, Offset),
         case IncR of
-          1 -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C + 1, P + 1, Offset, Notch, FirstRotor);
+          1 -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P + 1, Offset, Notch, FirstRotor);
           _ -> rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P, Offset, Notch, FirstRotor) end
     end.
 
@@ -197,7 +195,10 @@ message_broker(RegReceivers, UnsentMsgs) ->
 % called for the broadcast, for debug reasons. Channel is an atom, and Value is
 % the message content.
 broadcasts(Target, Source, Channel, Value) ->
-    io:format("[-> ~4w] ~p ~p~n", [Channel, Source, Value]),
+    case Channel of
+      x -> io:format("[-> ~4w] ~p ~p~n", [Channel, Source, case Channel of x -> [Value]; keys -> [Value]; m1 -> [Value]; m2 -> [Value]; m3 -> [Value]; _ -> Value end]);
+      _ -> io:format("")
+    end,
     Target ! {broadcasts, Source, Channel, Value},
     if Channel == none ->
       ok;
@@ -258,11 +259,11 @@ enigma(ReflectorName, RotorNames, InitialSetting,
 % rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P) ->
     Rotor3 = spawn(enigma, rotor,
 		   [self(), listFor(rotor, element(1, RotorNames)), none, i3, m1, ref, element(1, RingSettings),
-		    element(1, InitialSetting) - 1, -1, 91, 0]),
+		    element(1, InitialSetting) - 1, -1, $Q, 0]),
     io:format("Rotor3: ~p~n", [Rotor3]),
     Rotor2 = spawn(enigma, rotor,
 		   [self(), listFor(rotor, element(2, RotorNames)), i3, i2, m2, m1, element(2, RingSettings),
-		    element(2, InitialSetting) - 1, -1, $V, 0]),
+		    element(2, InitialSetting) - 1, -1, $E, 0]),
     Rotor1 = spawn(enigma, rotor,
 		   [self(), listFor(rotor, element(3, RotorNames)), i2, i1, m3, m2, element(3, RingSettings),
 		    element(3, InitialSetting) - 1, 1, $V, 1]),

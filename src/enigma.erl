@@ -128,14 +128,8 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
       _ ->
 	  broadcasts(Parent, self(), Inc_L, NotchBump),
 	  rotorFunction(Parent, Right, Left, Rotor, P + IncR),
-	  case IncR of
-	    1 ->
-		rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C + 1,
-		      P + 1, Notch, NotchPointOffset);
-	    _ ->
-		rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
-		      Notch, NotchPointOffset)
-	  end
+		rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C + IncR,
+		      P + IncR, Notch, NotchPointOffset)
     end.
 
 % f_rotor takes the result of offsetting X by P, then looks it up on the rotor.

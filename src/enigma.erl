@@ -33,10 +33,10 @@ main(Args) ->
 %% channel.
 keyboard(Parent, Keys, Lamp, Inc) ->
     X = receives(Parent, x),
-    broadcasts(Parent, self(), Inc, 1),
-    broadcasts(Parent, self(), Keys, X),
+    broadcasts(Parent, Inc, 1),
+    broadcasts(Parent, Keys, X),
     Output = receives(Parent, Lamp),
-    broadcasts(Parent, self(), x, Output),
+    broadcasts(Parent, x, Output),
     keyboard(Parent, Keys, Lamp, Inc).
 
 %% Reflector: Also reflects the initial spec. This was one of the earlier parts
@@ -46,7 +46,7 @@ keyboard(Parent, Keys, Lamp, Inc) ->
 reflector(Parent, In, Out, Reflector) ->
     Key = receives(Parent, In),
     F_refl_result = f_refl(Reflector, Key, 1),
-    broadcasts(Parent, self(), Out, F_refl_result),
+    broadcasts(Parent, Out, F_refl_result),
     reflector(Parent, In, Out, Reflector).
 
 %% f_refl checks the reflector at both sides for the character it wishes to
@@ -72,7 +72,7 @@ f_refl(Reflector, Input, ElementToCheck) ->
 plugboard(Parent, Plugboard, Input, Output) ->
     Key = receives(Parent, Input),
     F_plug_result = f_plug(Plugboard, Key),
-    broadcasts(Parent, self(), Output,
+    broadcasts(Parent, Output,
 	       wrapChar(F_plug_result)),
     % Respond on the opposite channel this time.
     plugboard(Parent, Plugboard, Output, Input).
@@ -99,7 +99,7 @@ rotorPass(Parent, Input, EncryptionFunction, Output,
     F_rotor_result = enigma:EncryptionFunction(Rotor, P,
 					       Key)
 		       - P,
-    broadcasts(Parent, self(), Output,
+    broadcasts(Parent, Output,
 	       wrapChar(F_rotor_result)).
 
 %% This is the rotor process. It takes all its channels and C and P as arguments
@@ -115,7 +115,7 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
     case C of
       TurnPoint ->
 	  % send inc to incl
-	  broadcasts(Parent, self(), Inc_L, NotchBump),
+	  broadcasts(Parent, Inc_L, NotchBump),
 	  rotorFunction(Parent, Right, Left, Rotor, P + IncR),
 	  case IncR of
 	    1 ->
@@ -126,7 +126,7 @@ rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
 		      Notch, NotchPointOffset)
 	  end;
       _ ->
-	  broadcasts(Parent, self(), Inc_L, NotchBump),
+	  broadcasts(Parent, Inc_L, NotchBump),
 	  rotorFunction(Parent, Right, Left, Rotor, P + IncR),
 		rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C + IncR,
 		      P + IncR, Notch, NotchPointOffset)
@@ -184,9 +184,11 @@ message_broker(RegReceivers, UnsentMsgs) ->
 
 %% The broadcasts helper function alerts the message broker (Target) of a
 %% message (Value) on some channel (Channel). The message broker keeps this
-%% message until it can be delegated to a channel that is receiving.
-broadcasts(Target, Source, Channel, Value) ->
-    Target ! {broadcasts, Source, Channel, Value},
+%% message until it can be delegated to a channel that is receiving. The source
+%% process that called broadcasts must be passed along so that it can be
+%% notified when its input has been addresssed.
+broadcasts(Target, Channel, Value) ->
+    Target ! {broadcasts, self(), Channel, Value},
     if Channel == none -> ok;
        true ->
 	   receive {ok, {broadcasts, Channel, Value}} -> ok end
@@ -314,7 +316,7 @@ encryptWithState(Enigma_PID, TextString,
     case TextString of
       [] -> lists:reverse(EncryptedString);
       [Head | Tail] ->
-	  broadcasts(Enigma_PID, self(), x, Head),
+	  broadcasts(Enigma_PID, x, Head),
 	  EncryptedChar = receives(Enigma_PID, x),
 	  encryptWithState(Enigma_PID, Tail,
 			   [EncryptedChar | EncryptedString])

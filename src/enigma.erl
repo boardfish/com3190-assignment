@@ -212,7 +212,7 @@ listFor(Type, Name) ->
 %% that have been offset, thus wrapChar.
 wrapToRange(Input, Min, Max) ->
     if Input < Min ->
-	   $A + ((Input - $A) rem 26 + 26) rem 26;
+	   Min + ((Input - Min) rem 26 + 26) rem 26;
        true -> Min + (Input - Min) rem (Max + 1 - Min)
     end.
 

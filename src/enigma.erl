@@ -201,12 +201,6 @@ receives(Parent, Channel) ->
     Parent ! {receives, Channel, self()},
     receive {receives, Channel, Value} -> Value end.
 
-%% This version awaits a message on the channel, then runs a callback function
-%% passed to it.
-receives(Parent, Channel, Callback) ->
-    Parent ! {receives, Channel, self()},
-    receive {receives, Channel, Value} -> Callback() end.
-
 %% Takes an atom and a string, and returns the return value of the corresponding
 %% function in enigma.hrl. e.g. listFor(rotor, "III") -> rotorIII().
 listFor(Type, Name) ->

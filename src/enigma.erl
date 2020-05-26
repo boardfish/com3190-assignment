@@ -26,7 +26,7 @@ main(Args) ->
     
     Enigma = enigma:setup("B",{"II","I","III"},{26,23,4},[{$E,$Z}, {$B,$L}, {$X,$P}, {$W,$R}, {$I,$U}, {$V,$M}, {$J,$O}], {$A,$G,$I}),
     Res = enigma:crypt(Enigma,Args),
-    io:format("starting reverse~n---~n"),
+    % io:format("starting reverse~n---~n"),
     % Enigma2 = enigma:setup("B",{"II","I","III"},{1,1,1},[], {$A,$A,$B}),
     % Res2 = enigma:crypt(Enigma2,Res),
     io:format("Done! Check this out: ~p~n", [Res]).
@@ -271,6 +271,20 @@ notchFor(RotorNumber) ->
 %     rotor(Parent, )
 %   }
 
+ringstellung(Rotor, Ringstellung) ->
+    % How To Ringstellung
+    % 1: Shift all the characters up by the Ringstellung minus 1!
+    YShiftedRotorData = [{X, wrapChar(Y + (Ringstellung - 1))} || {X, Y} <- Rotor],
+    % 2: Shift the other side up by the Ringstellung minus 1!
+    XShiftedRotorData = [{wrapChar(X + (Ringstellung - 1)), Y} || {X, Y} <- YShiftedRotorData],
+    XShiftedRotorData.
+
+configureRotor(RotorName, Ringstellung) ->
+  ringstellung(
+    listFor(rotor, RotorName),
+    Ringstellung
+  ).
+
 %%====================================================================
 %% Exported functions
 %%====================================================================
@@ -281,14 +295,14 @@ enigma(ReflectorName, RotorNames, InitialSetting,
 		      [self(), ref, ref, listFor(reflector, ReflectorName)]),
 % rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P) ->
     Rotor3 = spawn(enigma, rotor,
-		   [self(), listFor(rotor, element(1, RotorNames)), none, i3, m1, ref, element(1, InitialSetting) - 1,
+		   [self(), configureRotor(element(1, RotorNames), element(1, InitialSetting)), none, i3, m1, ref, 0,
 		    element(1, RingSettings) - $A, 1, notchFor(element(1, RotorNames)), 0, element(1, RingSettings) - $A]),
     io:format("Rotor3: ~p~n", [Rotor3]),
     Rotor2 = spawn(enigma, rotor,
-		   [self(), listFor(rotor, element(2, RotorNames)), i3, i2, m2, m1, element(2, InitialSetting) - 1,
+		   [self(), configureRotor(element(2, RotorNames), element(2, InitialSetting)), i3, i2, m2, m1, 0,
 		    element(2, RingSettings) - $A, 1, notchFor(element(2, RotorNames)), 0, element(2, RingSettings) - $A]),
     Rotor1 = spawn(enigma, rotor,
-		   [self(), listFor(rotor, element(3, RotorNames)), i2, i1, m3, m2, element(3, InitialSetting) - 1,
+		   [self(), configureRotor(element(3, RotorNames), element(3, InitialSetting)), i2, i1, m3, m2, 0,
 		    element(3, RingSettings) - $A, 1, notchFor(element(3, RotorNames)), 1, element(3, RingSettings) - $A]),
     Plugboard = spawn(enigma, plugboard,
 		      [self(), PlugboardPairs, keys, m3, 0]),

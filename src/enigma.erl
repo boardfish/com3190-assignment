@@ -24,7 +24,7 @@ main(Args) ->
     % io:format("Done! Check this out: ~p~n", [Res]),
     % io:format("Done! Check this out: ~p~n", [Res2]).
     
-    Enigma = enigma:setup("B",{"II","I","III"},{1,1,1},[], {$A,$D,$E}),
+    Enigma = enigma:setup("B",{"II","I","III"},{26,23,4},[{$E,$Z}, {$B,$L}, {$X,$P}, {$W,$R}, {$I,$U}, {$V,$M}, {$J,$O}], {$A,$G,$I}),
     Res = enigma:crypt(Enigma,Args),
     io:format("starting reverse~n---~n"),
     % Enigma2 = enigma:setup("B",{"II","I","III"},{1,1,1},[], {$A,$A,$B}),

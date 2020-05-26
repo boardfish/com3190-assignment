@@ -13,6 +13,11 @@
 %% Development note: I used this often, passing Res to a second machine's crypt
 %% function to make sure that my implementation was bijective all the way
 %% through.
+%% I had some difficulties with getting EUnit to work at first, so I'd often
+%% change the settings in here, then run through some inputs with the script up
+%% top, e.g. scripts/run "THISISANEXAMPLE...". Comparing my logging with the
+%% flash simulation at enigmaco.de helped to improve my understanding
+%5 throughout, especially when it came to double notching.
 main(Args) ->
     Enigma = enigma:setup("B", {"II", "I", "III"},
 			  {26, 23, 4},
@@ -102,33 +107,35 @@ rotorPass(Parent, Input, EncryptionFunction, Output,
     broadcasts(Parent, Output, wrapChar(F_rotor_result)).
 
 %% This is the rotor process. It takes all its channels and C and P as arguments
+%% and handles everything a rotor would do, including notching.
 rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
-      Notch, NotchPointOffset) ->
+      Notch, TurnPointOffset) ->
     IncR = receives(Parent, Inc_R),
-    NotchPoint = Notch,
-    TurnPoint = wrapChar(25 + $A + NotchPointOffset),
+    % If the Ringstellungen have been changed, we'll need to offset the point at
+    % which a full rotation is recognised accordingly.
+    TurnPoint = wrapChar($Z + TurnPointOffset),
+    % Which character is at the top of the rotor (P+$A)? Is it the notch char?
     NotchBump = case wrapChar(P + $A) of
-		  NotchPoint -> 1;
+		  Notch -> 1;
 		  _ -> 0
 		end,
     case C of
       TurnPoint ->
-	  % send inc to incl
 	  broadcasts(Parent, Inc_L, NotchBump),
 	  rotorFunction(Parent, Right, Left, Rotor, P + IncR),
 	  case IncR of
 	    1 ->
 		rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, 0,
-		      P - 25, Notch, NotchPointOffset);
+		      P - 25, Notch, TurnPointOffset);
 	    _ ->
 		rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left, C, P,
-		      Notch, NotchPointOffset)
+		      Notch, TurnPointOffset)
 	  end;
       _ ->
 	  broadcasts(Parent, Inc_L, NotchBump),
 	  rotorFunction(Parent, Right, Left, Rotor, P + IncR),
 	  rotor(Parent, Rotor, Inc_L, Inc_R, Right, Left,
-		C + IncR, P + IncR, Notch, NotchPointOffset)
+		C + IncR, P + IncR, Notch, TurnPointOffset)
     end.
 
 % f_rotor takes the result of offsetting X by P, then looks it up on the rotor.

@@ -69,14 +69,13 @@ f_refl(Reflector, Input, ElementToCheck) ->
 %% reflector from the keyboard, it accepts on the right channel. After taking
 %% that input, it accepts on the left channel by swapping its output and input
 %% channels.
-plugboard(Parent, Plugboard, Input, Output, Offset) ->
+plugboard(Parent, Plugboard, Input, Output) ->
     Key = receives(Parent, Input),
     F_plug_result = f_plug(Plugboard, Key),
     broadcasts(Parent, self(), Output,
-	       wrapChar(F_plug_result + Offset)),
+	       wrapChar(F_plug_result)),
     % Respond on the opposite channel this time.
-    plugboard(Parent, Plugboard, Output, Input,
-	      -1 * Offset).
+    plugboard(Parent, Plugboard, Output, Input).
 
 %% f_plug works in the same way as f_refl, as both map characters to just one
 %% other bijectively. Thus, it's safe to inherit that behaviour.
@@ -296,7 +295,7 @@ enigma(ReflectorName, RotorNames, InitialSetting,
 		    notchFor(element(3, RotorNames)),
 		    element(3, RingSettings) - $A]),
     Plugboard = spawn(enigma, plugboard,
-		      [self(), PlugboardPairs, keys, m3, 0]),
+		      [self(), PlugboardPairs, keys, m3]),
     Keyboard = spawn(enigma, keyboard,
 		     [self(), keys, keys, i1]),
     message_broker([], []).
